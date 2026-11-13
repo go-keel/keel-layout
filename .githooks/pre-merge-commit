@@ -1,0 +1,11 @@
+#!/bin/sh
+# Automatic merges (no conflicts, no manual finish) do not trigger pre-commit. Two branches that are each clean can
+# still produce dead links when merged: one deletes a doc while the other adds a reference to it; neither commit
+# catches it, only the merge result does. So merges also run the lint-strict pass from pre-commit; the ledger
+# check is skipped: the branch commits were checked when made, and asking for an exemption again at merge time is
+# just noise.
+# A merge with conflicts finished by a manual git commit goes through pre-commit itself; rebase replays commits
+# without any hook.
+# When stopped, the merge stays in progress: fix it and finish with `SKIP_UPGRADING=1 git commit`, or
+# `git merge --abort`.
+SKIP_UPGRADING=1 exec "$(dirname "$0")/pre-commit"

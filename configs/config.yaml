@@ -1,0 +1,67 @@
+# This is the real main config: production deploys config.yaml (with real values injected or replaced by the
+# deployment layer). The connection credentials committed here (root:123456) are local-development placeholders
+# only; real credentials are never committed.
+# Local overrides during development go in config.dev.yaml (ignored by .gitignore; development only, never used in
+# production).
+app:
+  domain: keel
+  name: keel-layout
+  version: 1.0.0
+  node_id: 0 # Node ID for snowflake ID generation. Range: 0-1023 (static), -1 (auto-allocate via Redis)
+  stop_timeout: 20s # shutdown budget of each server; the deployment grace period must add the NATS connection cleanup limit (≤10s)
+
+logger:
+  level: info
+  stacktrace_level: error    # attach stack traces at this level and above
+  console: true
+  format: text               # console encoding: text | json
+
+otel:
+  enabled: true
+  endpoint: "localhost:4317"
+  insecure: true
+
+server:
+  http:
+    default:
+      addr: "0.0.0.0:8080"
+      timeout: 10s
+      auth:
+        enabled: false
+      # Trusted proxies; unset trusts only localhost. Setting it replaces that, so list localhost too if still needed. See docs/guides/deploy-nginx.md.
+      # client_ip:
+      #   trusted_proxies: ["10.0.0.5", "127.0.0.1"]
+  grpc:
+    default:
+      addr: "0.0.0.0:9000"
+      timeout: 10s
+
+# Connections are always UTC, and both parameters are required: loc decides how Go interprets the DATETIMEs it
+# reads and writes, time_zone decides which time zone CURRENT_TIMESTAMP reads in the database. With loc alone,
+# DEFAULT CURRENT_TIMESTAMP in the table scripts still fills in the database server's local time, off by the zone
+# offset from rows Go writes.
+database:
+  default:
+    driver: mysql
+    source: root:123456@tcp(localhost:3306)/keel?charset=utf8mb4&parseTime=True&loc=UTC&time_zone=%27%2B00%3A00%27
+
+redis:
+  default:
+    addr:
+      - 127.0.0.1:6379
+
+nats:
+  default:
+    url: nats://localhost:4222
+    creds_file: ""        # nkey/JWT credentials file path; empty means no authentication
+    stream_max_age: 604800s # retention of the streams the framework creates, 7 days; this is the default
+    stream_replicas: 1    # replica count, default 1; in a cluster set it to match the cluster
+
+asynq:
+  default:
+    concurrency: 10
+    queues:
+      default: 6
+      low: 1
+      critical: 3
+    strict_priority: false

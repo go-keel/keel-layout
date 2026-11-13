@@ -1,0 +1,6 @@
+custom:
+  # Example: delete after forking
+  # Webhook signing secret. **Empty by default on purpose**: the template ships no default secret everyone can see;
+  # when it is missing the handler returns 503 instead of verifying with it. Inject it from secret management in
+  # production.
+  webhook_secret: ""

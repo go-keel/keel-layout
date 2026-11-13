@@ -1,0 +1,15 @@
+syntax = "proto3";
+package conf.v1;
+
+option go_package = "github.com/go-keel/keel-layout/internal/conf;conf";
+
+message Bootstrap {
+  Custom custom = 1;
+}
+
+// Custom holds this service's own settings; add fields as you need them (docs/guides/config.md).
+message Custom {
+  // Example: delete after forking
+  // Webhook signing secret (HMAC-SHA256), used by the raw HTTP webhook signature example
+  string webhook_secret = 1;
+}

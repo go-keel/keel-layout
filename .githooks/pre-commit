@@ -1,0 +1,84 @@
+#!/bin/sh
+# Stops a commit that changes the propagation surface without touching UPGRADING.md.
+#
+# Why it exists: UPGRADING.md is the only channel that carries changes to derived repositories (see
+# docs/adr/layout-0001-template-upgrade-strategy.md), yet writing it relied on memory. It was missed once: right
+# after the ledger was created, nine commits in a row changed AGENTS.md, three shared ADRs and two shared scripts
+# without a single ledger entry. A derived repository following the ledger (diffing two UPGRADING files) cannot
+# see that batch at all: it reads the ledger, not upstream's whole history, and that is exactly what this
+# mechanism protects.
+#
+# Only rules and scripts are checked (AGENTS.md / GLOSSARY.md / docs/ / scripts/ / Makefile / this directory): when
+# they change, every derived repository's copy is out of date at once. Business code (api/, internal/,
+# migrations/ …) is deliberately not checked: the template's examples change it all the time, almost never
+# requiring derived repositories to act, so checking it would be noise; a change there that derived repositories
+# must act on still needs an entry, judged by hand (docs/upgrading-protocol.md).
+#
+# A repository nobody forks writes no entries of its own: delete the ledger check below (the first if block).
+#
+# The criterion is always "must derived repositories act on this", while the machine only sees shapes. Changes
+# that need no action (typos, wording, this repository's own self-check tools) are exempted directly, with no
+# made-up entry:
+#
+#     SKIP_UPGRADING=1 git commit ...
+#
+# Install: `make init-hooks`. git hooks do not travel with a clone; run it once after forking.
+# This file is **not** in scripts/cross-repo-sync.list: the propagation-surface paths differ per repository
+# (kernel trees, frontend directories), so a derived repository adapts its copy to its own tree.
+set -eu
+
+fail=0
+
+if [ "${SKIP_UPGRADING:-}" != "1" ]; then
+	staged=$(git diff --cached --name-only)
+
+	# The ledger itself is in this change: let it through; whether the entry is right is not for the machine to judge
+	if ! printf '%s\n' "$staged" | grep -qx 'UPGRADING\.md'; then
+		hits=$(printf '%s\n' "$staged" | grep -E '^(AGENTS\.md|GLOSSARY\.md|Makefile|docs/|scripts/|\.githooks/)' || true)
+		if [ -n "$hits" ]; then
+			echo "pre-commit: the propagation surface changed, but UPGRADING.md did not:"
+			printf '%s\n' "$hits" | sed 's/^/    /'
+			echo
+			echo "  When these change, every derived repository's copy is out of date. The criterion is whether derived repositories must act:"
+			echo "    yes -> add an entry at the top of UPGRADING.md (what changed, why, how to apply)"
+			echo "    no  -> SKIP_UPGRADING=1 git commit ..."
+			fail=1
+		fi
+	fi
+fi
+
+# Also runs lint-strict (dead doc links + cross-repository registration, this repository's self-check tier): about
+# 0.2s with a warm cache, barely noticeable at commit time, and dead doc links are exactly the kind most easily
+# missed and most costly: a template's dead links ship as-is to every derived repository. Not `make check`: its
+# build/test take another 4.6s, already run in the development loop; hanging it on commit would only train people
+# to use --no-verify.
+# lint-strict is this repository's (the upstream template) self-check tier; after forking, a derived repository
+# lacks the registrations under docs/adr/ and scripts/ that the template-only checks rely on, so it changes this
+# line to `make lint` (the forking step in the README). This file is not in scripts/cross-repo-sync.list: the
+# propagation-surface paths differ per repository, so each maintains its own.
+#
+# It checks a snapshot of the index, not the working tree: with one fix per commit, the working tree often holds
+# half-done changes not yet added, which would block unrelated commits, or let an unadded fix pass a dead link
+# that is staged. The snapshot directory is not a git repository; git check-ignore in the dead-link check reaches
+# this repository through GIT_DIR/GIT_WORK_TREE.
+gitdir=$(git rev-parse --absolute-git-dir)
+snap=$(mktemp -d)
+trap 'rm -rf "$snap"' EXIT
+git checkout-index -a --prefix="$snap/"
+# gofmt on the staged .go files (snapshot copies), seconds at most.
+gofiles=$(git diff --cached --name-only --diff-filter=ACMR -- '*.go')
+if [ -n "$gofiles" ]; then
+	bad=$(cd "$snap" && gofmt -l $gofiles)
+	if [ -n "$bad" ]; then
+		printf '%s\n' "$bad"
+		echo "pre-commit: the staged files above are not gofmt-formatted; run gofmt -w on them"
+		fail=1
+	fi
+fi
+# Resolve keel in the real checkout, as the developer's go commands see it, and pass it into the snapshot.
+KEEL_MODULE_DIR=$(GOWORK=off go list -m -f '{{.Dir}}' github.com/go-keel/keel 2>/dev/null || true)
+KEEL_MODULE_VERSION=$(GOWORK=off go list -m -f '{{.Version}}' github.com/go-keel/keel 2>/dev/null || true)
+export KEEL_MODULE_DIR KEEL_MODULE_VERSION
+(cd "$snap" && GIT_DIR="$gitdir" GIT_WORK_TREE="$snap" make lint-strict) || fail=1
+
+exit $fail

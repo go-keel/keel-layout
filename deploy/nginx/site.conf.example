@@ -1,0 +1,81 @@
+# Shared file: carried verbatim; never localized outside its source repository.
+# Checked by scripts/check-cross-repo-sync.sh; see docs/upgrading-protocol.md.
+#
+# Example sites; replace domains, certificates and ports for your deployment. The program's ports are
+# server.*.default.addr in configs/config.yaml.
+# Each server block that proxies to the program must include snippets/client-ip-headers.conf to enable the
+# client IP rewrite; sites without the include are unaffected.
+
+# Catch-all (optional): drop unknown Hosts instead of falling through to the first site.
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    return 444;
+}
+server {
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    server_name _;
+    ssl_reject_handshake on;
+}
+
+# Regular site: direct, or Cloudflare connecting to the origin.
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name api.example.com;
+    access_log /var/log/nginx/api.example.com.log client_ip;
+
+    ssl_certificate     /etc/nginx/ssl/api.example.com.pem;
+    ssl_certificate_key /etc/nginx/ssl/api.example.com.key;
+
+    include /etc/nginx/snippets/client-ip-headers.conf;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+    }
+
+    # A location that sets its own proxy headers no longer inherits the server's set, so include it again.
+    location /ws/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_read_timeout 1h;
+        include /etc/nginx/snippets/client-ip-headers.conf;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+
+# gRPC (optional).
+#
+# server {
+#     listen 443 ssl;
+#     http2 on;
+#     server_name grpc.example.com;
+#     access_log /var/log/nginx/grpc.example.com.log client_ip;
+#
+#     ssl_certificate     /etc/nginx/ssl/grpc.example.com.pem;
+#     ssl_certificate_key /etc/nginx/ssl/grpc.example.com.key;
+#
+#     include /etc/nginx/snippets/client-ip-headers.conf;
+#
+#     location / {
+#         grpc_pass grpc://127.0.0.1:9000;
+#     }
+# }
+
+# CloudFront VPC origin entry (optional), over HTTP. A separate port, not 80 or 443, matching block 3 of the
+# configuration area in client-ip.conf; the security group allows only CloudFront-VPCOrigins-Service-SG.
+#
+# server {
+#     listen 8088;
+#     server_name api.example.com;
+#     access_log /var/log/nginx/api.example.com.log client_ip;
+#
+#     include /etc/nginx/snippets/client-ip-headers.conf;
+#
+#     location / {
+#         proxy_pass http://127.0.0.1:8080;
+#     }
+# }

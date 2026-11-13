@@ -1,0 +1,11 @@
+[ErrInvalidArgument]
+hash = "sha1-e8f61e322aa3918ad41e92395259f527080506d8"
+other = "输入有误，请检查后再试。"
+
+[ErrTodoNotFound]
+hash = "sha1-dfaf1bdee696814d405b9983a1d9ed99d65694e4"
+other = "待办事项未找到。"
+
+[ErrUnexpectedError]
+hash = "sha1-73c841bf1e817ec2ab09b17eb0b43ec61bf1eda9"
+other = "出错了，请稍后再试。"

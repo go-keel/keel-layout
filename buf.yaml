@@ -1,0 +1,43 @@
+# Shared file: carried verbatim; never localized outside its source repository.
+# Checked by scripts/check-cross-repo-sync.sh; see docs/upgrading-protocol.md.
+version: v2
+# One Buf workspace: this service's api/ plus the .proto files it imports, copied into third_party/ by
+# scripts/sync-proto.sh from the versions in go.mod. Nothing comes from the Buf Schema Registry. Only api/ is linted
+# and generated; third_party/ is upstream content.
+modules:
+  - path: api
+    lint:
+      use: [STANDARD]
+      except:
+        # Packages are api.<domain>.<version> under api/<domain>/<version>; the api. prefix keeps service packages apart
+        # from third-party ones, and make rename relies on it.
+        - PACKAGE_DIRECTORY_MATCH
+        # Naming convention (docs/practices/structure.md "Naming and error reasons"): replies end in Reply; Get/Create/Update return the resource
+        # message itself and deletes return google.protobuf.Empty, so one message serves several RPCs.
+        - RPC_REQUEST_STANDARD_NAME
+        - RPC_RESPONSE_STANDARD_NAME
+        - RPC_REQUEST_RESPONSE_UNIQUE
+        # Error reasons are the enum value names (Kratos errors); clients match on them, so they carry no type prefix
+        # and the zero value is a real reason (UNEXPECTED_ERROR).
+        - ENUM_VALUE_PREFIX
+        - ENUM_ZERO_VALUE_SUFFIX
+  - path: third_party/keel
+    lint:
+      ignore: [third_party/keel]
+    breaking:
+      ignore: [third_party/keel]
+  - path: third_party/protovalidate
+    lint:
+      ignore: [third_party/protovalidate]
+    breaking:
+      ignore: [third_party/protovalidate]
+  - path: third_party/googleapis
+    lint:
+      ignore: [third_party/googleapis]
+    breaking:
+      ignore: [third_party/googleapis]
+  - path: third_party/kratos
+    lint:
+      ignore: [third_party/kratos]
+    breaking:
+      ignore: [third_party/kratos]

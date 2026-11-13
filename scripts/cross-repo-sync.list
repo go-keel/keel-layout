@@ -1,0 +1,58 @@
+# Files that must match upstream verbatim: <upstream repo directory> <relative path> [norm|seg]
+# Usage, and which side to change on a mismatch: see the top of scripts/check-cross-repo-sync.sh.
+#
+# **First thing after forking: replace the source repository field of every line below with your direct
+# upstream**, the repository you forked, not its upstream. make rename does not touch this file, and
+# forgetting fails silently: a derived repository usually has no sibling repositories locally, so the check
+# takes the green "upstream not local, skipped" path until one is placed there.
+# Repositories derived from keel-layout also enable the commented-out block at the end; see its heading.
+#
+# Compare only against the direct upstream, never across levels: it compares against its own upstream, and
+# transitivity keeps the whole chain consistent.
+# keel-layout is where distribution starts and has no upstream: keel is a framework referenced by version
+# through go.mod, never forked, and takes no part in verbatim comparison.
+
+# Shared files whose source is keel-layout, distributed with forks. Kept commented out in keel-layout: the
+# source path ../keel-layout/… would compare keel-layout with itself and stay green even when broken.
+# A repository derived from keel-layout enables them after forking by changing the leading `#keel-layout`
+# to `keel-layout`.
+# Convention docs (guides, practices, shared ADRs, the upgrading protocol) and framework scripts are compared
+# whole; AGENTS.md and GLOSSARY.md are registered as seg and compare only the shared segments keel-layout
+# delimits; everything outside them belongs to each repository. A derived repository rewrites none of these;
+# its own rules go outside the segments of the entry files or into separate files.
+# When keel-layout adds or removes a shared file or segment, update this list; make lint-strict names any
+# missing registration.
+#keel-layout AGENTS.md seg
+#keel-layout GLOSSARY.md seg
+#keel-layout scripts/check-doc-links.sh
+#keel-layout scripts/check-cross-repo-sync.sh
+#keel-layout scripts/sync-proto.sh
+#keel-layout buf.yaml
+#keel-layout docs/adr/layout-0001-template-upgrade-strategy.md
+#keel-layout docs/adr/layout-0002-verbatim-shared-docs-and-segmented-entry-files.md
+#keel-layout docs/adr/layout-0003-generated-artifacts-committed.md
+#keel-layout docs/adr/layout-0004-adr-naming-and-carry-protocol.md
+#keel-layout docs/adr/layout-0005-doc-link-check-distribution-boundary.md
+#keel-layout docs/adr/layout-0006-ledger-anchor-values.md
+#keel-layout docs/upgrading-protocol.md
+#keel-layout docs/practices/go.md
+#keel-layout docs/practices/transaction.md
+#keel-layout docs/practices/structure.md
+#keel-layout docs/practices/database.md
+#keel-layout docs/practices/user-text.md
+#keel-layout docs/guides/api-endpoint.md
+#keel-layout docs/guides/assembly.md
+#keel-layout docs/guides/auth.md
+#keel-layout docs/guides/config.md
+#keel-layout docs/guides/deploy-nginx.md
+#keel-layout docs/guides/domain-model.md
+#keel-layout docs/guides/errors.md
+#keel-layout docs/guides/grpc-client.md
+#keel-layout docs/guides/mq.md
+#keel-layout docs/guides/observability.md
+#keel-layout docs/guides/raw-http.md
+#keel-layout docs/guides/task.md
+#keel-layout docs/guides/testing.md
+#keel-layout deploy/nginx/conf.d/client-ip.conf
+#keel-layout deploy/nginx/snippets/client-ip-headers.conf
+#keel-layout deploy/nginx/site.conf.example

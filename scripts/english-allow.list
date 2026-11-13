@@ -1,0 +1,6 @@
+# Paths allowed to contain Chinese text (globs, matched against the repository-relative path). One reason per entry.
+# Template self-check only: a derived service switches lint-strict to lint and writes in its team's language.
+internal/i18n/*zh*            # end-user localisation
+internal/i18n/bundle_test.go  # asserts the zh translation
+internal/biz/todo_test.go     # test data: title length counted in characters. Example: delete after forking
+scripts/check-english.sh      # listed so its own pattern can never trip it

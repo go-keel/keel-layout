@@ -1,0 +1,14 @@
+# Copy both time-zone parameters (loc, time_zone) as they are; both are required, see the database section of config.yaml.
+database:
+  default:
+    driver: mysql
+    source: root:123456@tcp(localhost:3306)/keel?charset=utf8mb4&parseTime=True&loc=UTC&time_zone=%27%2B00%3A00%27
+
+redis:
+  default:
+    addr:
+      - 127.0.0.1:6379
+
+nats:
+  default:
+    url: nats://localhost:4222

@@ -1,0 +1,283 @@
+# Generated with protoc-gen-openapi
+# https://github.com/google/gnostic/tree/master/cmd/protoc-gen-openapi
+
+openapi: 3.0.3
+info:
+    title: TodoService API
+    description: |-
+        TodoService is the template's example resource: one Todo resource runs through all five servers:
+         HTTP API (cmd/api), gRPC (cmd/svc), MQ consumer / task worker /
+         cron scheduler (cmd/worker). Replace it with your own domain resource.
+    version: 0.0.1
+paths:
+    /v1/todos:
+        get:
+            tags:
+                - TodoService
+            description: |-
+                ListTodo is a paged list: server-side paging (offset/limit) plus total, with sorting and filtering done on the
+                 server too. Each filter has its own field, the sort is an enum, and the rows are a separate TodoListItem.
+
+                 Filtering **cannot** stay with the caller: with paging the caller only has the current page, and filtering it
+                 yields "the matches on this page", not "the first page of matches"; requests still go out and the page still
+                 renders, it just misses rows.
+            operationId: TodoService_ListTodo
+            parameters:
+                - name: offset
+                  in: query
+                  description: Starting offset, from 0.
+                  schema:
+                    type: integer
+                    format: int32
+                - name: limit
+                  in: query
+                  description: Page size; 0 uses the server default (20). Only the lte here bounds it; the code does not clamp again.
+                  schema:
+                    type: integer
+                    format: int32
+                - name: completed
+                  in: query
+                  description: 'Completion status: 0 all, 1 yes, 2 no. Not 1/0: 0 already means "all".'
+                  schema:
+                    type: integer
+                    format: int32
+                - name: sort
+                  in: query
+                  description: Sort; unset uses the server default.
+                  schema:
+                    type: integer
+                    format: enum
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/api.keel_layout.v1.ListTodoReply'
+        post:
+            tags:
+                - TodoService
+            description: CreateTodo creates a Todo, stores it and broadcasts the todo_created event (the worker consumes it and enqueues a reminder task).
+            operationId: TodoService_CreateTodo
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/api.keel_layout.v1.CreateTodoRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/api.keel_layout.v1.Todo'
+    /v1/todos/export:
+        get:
+            tags:
+                - TodoService
+            description: |-
+                ExportTodo is a contract binary response example (1d): a unary call returns google.api.HttpBody,
+                 raw bytes plus content_type as is, running through the middleware chain as usual. Suited to small files and
+                 exports; large files needing Range or resumable download use the raw download path (see /examples/download).
+            operationId: TodoService_ExportTodo
+            parameters:
+                - name: limit
+                  in: query
+                  description: Maximum number of rows to export; 0 uses the server default (100).
+                  schema:
+                    type: integer
+                    format: int32
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        '*/*': {}
+    /v1/todos/lookup:
+        get:
+            tags:
+                - TodoService
+            description: |-
+                StreamTodoLookup is a contract bidi stream example (Kratos v3: a bidi-stream RPC maps to both
+                 gRPC streaming and HTTP WebSocket). The middleware chain runs once when the stream opens and wraps the whole
+                 stream, not once per message; a bidi stream has no request message when it opens, so validate takes effect on
+                 neither side, and per-message validation belongs in the implementation.
+                 The client streams ids, the server streams back the matching Todos; it ends when the client closes its send side.
+            operationId: TodoService_StreamTodoLookup
+            parameters:
+                - name: id
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/api.keel_layout.v1.Todo'
+    /v1/todos/watch:
+        get:
+            tags:
+                - TodoService
+            description: |-
+                WatchTodo is a contract streaming example (Kratos v3: a server-stream RPC maps to both
+                 gRPC streaming and HTTP SSE). The middleware chain runs once when the stream opens and wraps the whole stream,
+                 not once per message; on the gRPC side there is no request message when the stream opens, so the limit
+                 validate takes effect only over HTTP, and the implementation validates the request itself.
+                 Over HTTP it pushes the current snapshot as text/event-stream and ends;
+                 in real use, subscribe to an event source and keep pushing.
+            operationId: TodoService_WatchTodo
+            parameters:
+                - name: limit
+                  in: query
+                  description: |-
+                    Maximum number of snapshot rows; 0 uses the server default (20), at most 100. Same name and meaning as in
+                     ListTodo: "how many to take at once" should have only one name in a repo.
+                  schema:
+                    type: integer
+                    format: int32
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/api.keel_layout.v1.Todo'
+    /v1/todos/{id}:
+        get:
+            tags:
+                - TodoService
+            description: |-
+                GetTodo looks up a Todo by id. Returns TODO_NOT_FOUND if it does not exist. It comes after the fixed paths
+                 (watch, lookup, export): HTTP routes are matched in declaration order, and /v1/todos/{id} would take them.
+            operationId: TodoService_GetTodo
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/api.keel_layout.v1.Todo'
+        delete:
+            tags:
+                - TodoService
+            description: DeleteTodo deletes by id. Returns TODO_NOT_FOUND if it does not exist.
+            operationId: TodoService_DeleteTodo
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content: {}
+    /v1/todos/{todo.id}:
+        patch:
+            tags:
+                - TodoService
+            description: UpdateTodo partially updates by FieldMask, overwriting only the fields listed in update_mask.
+            operationId: TodoService_UpdateTodo
+            parameters:
+                - name: todo.id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: updateMask
+                  in: query
+                  description: The set of field paths to overwrite; fields not listed stay unchanged.
+                  schema:
+                    type: string
+                    format: field-mask
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/api.keel_layout.v1.Todo'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/api.keel_layout.v1.Todo'
+components:
+    schemas:
+        api.keel_layout.v1.CreateTodoRequest:
+            type: object
+            properties:
+                title:
+                    type: string
+                content:
+                    type: string
+        api.keel_layout.v1.ListTodoReply:
+            type: object
+            properties:
+                todos:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/api.keel_layout.v1.TodoListItem'
+                total:
+                    type: string
+                    description: |-
+                        Total match count, unaffected by offset/limit. The caller's pager computes the page count from it; without it
+                         the list shows as a single page.
+        api.keel_layout.v1.Todo:
+            type: object
+            properties:
+                id:
+                    type: string
+                    description: Unique id assigned by the server; read-only on create.
+                title:
+                    type: string
+                    description: Title.
+                content:
+                    type: string
+                    description: Detailed content.
+                completed:
+                    type: boolean
+                    description: Whether it is completed.
+                createTime:
+                    type: string
+                    description: Creation time, assigned by the server, read-only.
+                    format: date-time
+                updateTime:
+                    type: string
+                    description: Last modification time, assigned by the server, read-only.
+                    format: date-time
+            description: The canonical representation of the Todo resource.
+        api.keel_layout.v1.TodoListItem:
+            type: object
+            properties:
+                id:
+                    type: string
+                    description: Unique id.
+                title:
+                    type: string
+                    description: Title.
+                completed:
+                    type: boolean
+                    description: Whether it is completed.
+                createTime:
+                    type: string
+                    description: Creation time.
+                    format: date-time
+                updateTime:
+                    type: string
+                    description: Last modification time.
+                    format: date-time
+            description: |-
+                TodoListItem is one row of the list: only the fields the list shows, not a reuse of the detail Todo.
+                 Sharing it would turn fields added to the detail into empty fields in the list, read as "really empty".
+tags:
+    - name: TodoService

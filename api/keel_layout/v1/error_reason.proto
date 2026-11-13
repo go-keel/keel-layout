@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package api.keel_layout.v1;
+
+import "errors/errors.proto";
+
+option go_package = "github.com/go-keel/keel-layout/api/keel_layout/v1;v1";
+
+enum ErrorReason {
+  option (errors.default_code) = 500;
+
+  UNEXPECTED_ERROR = 0 [(errors.code) = 500];
+  INVALID_ARGUMENT = 1 [(errors.code) = 400];
+  // Example: delete after forking
+  TODO_NOT_FOUND = 100 [(errors.code) = 404];
+}

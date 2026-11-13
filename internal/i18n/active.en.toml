@@ -1,0 +1,3 @@
+ErrInvalidArgument = "Invalid request. Please check your input."
+ErrTodoNotFound = "Todo not found."
+ErrUnexpectedError = "Something went wrong. Please try again later."
