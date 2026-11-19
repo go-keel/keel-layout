@@ -12,10 +12,11 @@ root `UPGRADING.md` (the derived repository's copy is its sync ledger; usage at 
 derived repository decides whether and how to follow. Problems found in a derived repository are fixed in the
 template repository and reach the derived repository through its `UPGRADING.md` entry.
 
-**"Overwrite the whole directory" is not free.** If the template contains a read-only kernel tree, the module rename
-must be rerun after overwriting before it compiles: every import of the module path in the kernel points at the
-template's old module name. "Read-only" in the docs means **the derived repository does not change it**, not "upgrades
-cost nothing".
+**The rename runs once.** Upstream's kernel files import the template's module path, so they cannot be copied in as
+they are. They are taken with `make sync-upstream`, which writes them already renamed to the derived repository's
+module path: the same normalization `make check-sync` uses to compare them. The rename itself
+(`make rename`) runs only when the repository is created; rerunning it over the whole repository would rewrite the
+derived repository's own files by text. "Read-only" in the docs means **the derived repository does not change it**.
 
 **The same holds for schemas.** A template ships only the complete schema of each database (`docs/guides/domain-model.md`,
 "Schema"); a derived repository whose database already exists runs the `ALTER` given in the matching `UPGRADING.md`
@@ -27,8 +28,10 @@ Two rejected paths:
 1. **Derived repositories keep the module name, so they can `git pull` directly**: not possible. Module paths must
    be unique: several derived repositories existing at once would collide, and one `go get`-ing another and
    importing its `api/` proto stubs would not work at all.
-2. **An upgrade tool that overwrites, reruns the rename and generates migrations**: with one maintainer and a limited
-   number of derived repositories, maintaining the tool costs more than it saves.
+2. **An upgrade tool that applies ledger entries and generates migrations**: with one maintainer and a limited
+   number of derived repositories, maintaining the tool costs more than it saves. `make sync-upstream` is not one: it
+   only writes the files `make check-sync` already compares, with the names it already normalizes; entries are still
+   followed by hand.
 
 Cost: changes reach downstream only as text, so it must be written as a formal change record. The carrier is the
 **root `UPGRADING.md`** (distributed with the template; the derived repository's copy is its sync ledger, usage at

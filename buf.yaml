@@ -1,9 +1,10 @@
-# Shared file: carried verbatim; never localized outside its source repository.
-# Checked by scripts/check-cross-repo-sync.sh; see docs/upgrading-protocol.md.
 version: v2
-# One Buf workspace: this service's api/ plus the .proto files it imports, copied into third_party/ by
-# scripts/sync-proto.sh from the versions in go.mod. Nothing comes from the Buf Schema Registry. Only api/ is linted
-# and generated; third_party/ is upstream content.
+# One Buf workspace: this service's api/ plus the .proto files it imports. scripts/sync-proto.sh copies Keel's and
+# Kratos's into the four third_party/ directories below from the versions in go.mod; nothing comes from the Buf Schema
+# Registry. Only api/ is linted and generated; third_party/ is upstream content.
+# This file is the repository's own, not a shared file: keep the modules below, and add one module (with the same
+# lint and breaking ignores) for each directory of your own under third_party/, where a .proto that Keel does not ship
+# is vendored at a fixed version.
 modules:
   - path: api
     lint:

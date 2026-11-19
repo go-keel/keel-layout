@@ -27,7 +27,6 @@
 #keel-layout scripts/check-doc-links.sh
 #keel-layout scripts/check-cross-repo-sync.sh
 #keel-layout scripts/sync-proto.sh
-#keel-layout buf.yaml
 #keel-layout docs/adr/layout-0001-template-upgrade-strategy.md
 #keel-layout docs/adr/layout-0002-verbatim-shared-docs-and-segmented-entry-files.md
 #keel-layout docs/adr/layout-0003-generated-artifacts-committed.md

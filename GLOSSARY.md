@@ -148,5 +148,7 @@ keel-layout is a service template plus usage guide built on the Keel framework: 
 and a skeleton, and becomes a real service once forked and renamed.
 
 - The **zero-diff area** and **assembly seams** are only those listed in the shared segment; nothing is added.
-- **Generated artifacts** also include `third_party/`, copied by `make proto` from the versions in `go.mod`.
+- **Generated artifacts** also include the four directories `make proto` copies into `third_party/` (`keel`,
+  `protovalidate`, `googleapis`, `kratos`) from the versions in `go.mod`; other directories under `third_party/` are
+  the repository's own vendored `.proto`.
 - **Consumer**: registered in `internal/server/consumer.go`, hosted by `cmd/worker`.

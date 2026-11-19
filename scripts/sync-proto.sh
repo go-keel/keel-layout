@@ -5,7 +5,9 @@
 # Keel's proto/keel/ and its third_party/ (protovalidate, googleapis) from github.com/go-keel/keel, and
 # errors/errors.proto verbatim from github.com/go-kratos/kratos/v3. `make proto` runs it before generating; `make check`
 # compares the result with what is committed. No version is written here: upgrading Keel or Kratos in go.mod and
-# running `make proto` is the whole upgrade. Do not edit third_party/ by hand.
+# running `make proto` is the whole upgrade. It owns only the four directories it writes (third_party/keel,
+# protovalidate, googleapis, kratos); never edit those by hand. Any other directory under third_party/ is this
+# repository's own: a .proto Keel does not ship, vendored at a fixed version and declared as a module in buf.yaml.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export GOWORK=off
@@ -24,11 +26,12 @@ moddir() {
 keel=$(moddir "$KEEL")
 kratos=$(moddir "$KRATOS")
 
-rm -rf third_party
+owned=(third_party/keel third_party/protovalidate third_party/googleapis third_party/kratos)
+rm -rf "${owned[@]}"
 mkdir -p third_party/keel third_party/kratos/errors
 cp -R "$keel/proto/keel" third_party/keel/
 cp -R "$keel/third_party/protovalidate" "$keel/third_party/googleapis" third_party/
 cp "$kratos/errors/errors.proto" third_party/kratos/errors/
 # The module cache is read-only and the copies keep its modes: make them writable before deleting from them.
-chmod -R u+w third_party
-find third_party -type f ! -name '*.proto' -delete
+chmod -R u+w "${owned[@]}"
+find "${owned[@]}" -type f ! -name '*.proto' -delete

@@ -26,10 +26,14 @@ set -eu
 
 cd "$(dirname "$0")/.."
 
-# The template repository's own module path. **Derived repos must not change this line.** It is the second source
-# string besides go.mod: files copied over wholesale from upstream carry this name, while go.mod has long had the
-# derived repo's own name, so relying on go.mod alone would miss them.
+# The template repository's own module path. The rename runs once, when a repository is created from the template
+# (go.mod still names the template); following upstream later goes through `make sync-upstream`, which writes upstream's
+# files already carrying this repository's names. Change this line only in a repository that is itself
+# forked, to its own values once its rename is done, so its forks can rename.
 TEMPLATE_MODULE=github.com/go-keel/keel-layout
+
+# The template's proto package segment (`api/<it>/`): what the one rename replaces.
+TEMPLATE_DOMAIN=keel_layout
 
 new=${MODULE:-}
 if [ -z "$new" ]; then
@@ -81,6 +85,10 @@ if [ -z "$current" ]; then
 	echo "rename: go.mod has no module line" >&2
 	exit 1
 fi
+if [ "$current" != "$TEMPLATE_MODULE" ] && [ "$current" != "$new" ]; then
+	echo "rename: this repository is already ${current}; the rename runs once, when a repository is created from the template. To follow upstream, run make sync-upstream (docs/upgrading-protocol.md)" >&2
+	exit 1
+fi
 
 # Module path → package segment under api/. Rules in the header comment.
 domain_of() {
@@ -106,20 +114,13 @@ case "$new_domain" in
 	;;
 esac
 
-# Old package segments to rename: the one derived from the current module plus the template's own (files copied
-# over from upstream carry it, same reason as TEMPLATE_MODULE). Only one of these two directories may exist under
-# api/, and the target must not exist yet: merging two proto packages is not a decision for a rename script, so fail
-# before touching files.
-old_domains=$(printf '%s\n%s\n' "$(domain_of "$current")" "$(domain_of "$TEMPLATE_MODULE")" | sort -u)
+# Old package segment to rename: the template's. The target must not exist yet: merging two proto packages is not a
+# decision for a rename script, so fail before touching files.
+old_domain=$TEMPLATE_DOMAIN
 move_from=
-for d in $old_domains; do
-	[ "$d" != "$new_domain" ] && [ -d "api/$d" ] || continue
-	if [ -n "$move_from" ]; then
-		echo "rename: both api/${move_from} and api/${d} exist; cannot tell which one to rename to api/${new_domain}" >&2
-		exit 1
-	fi
-	move_from=$d
-done
+if [ "$old_domain" != "$new_domain" ] && [ -d "api/$old_domain" ]; then
+	move_from=$old_domain
+fi
 if [ -n "$move_from" ] && [ -e "api/$new_domain" ]; then
 	echo "rename: api/${new_domain} already exists; cannot rename api/${move_from} to it" >&2
 	exit 1
@@ -197,20 +198,10 @@ changed=$(
 		echo "  api/${move_from}/ → api/${new_domain}/"
 	fi
 	replace_all "$current"
-	if [ "$TEMPLATE_MODULE" != "$current" ]; then
-		replace_all "$TEMPLATE_MODULE"
-	fi
-	for d in $old_domains; do
-		replace_domain "$d"
-	done
+	replace_domain "$old_domain"
 )
 # A file may be changed by both the module-path and package-segment passes; list it once
 changed=$(printf '%s\n' "$changed" | awk 'NF && !seen[$0]++')
-
-if [ ! -d "api/$new_domain" ]; then
-	# Reached when an earlier rename set a different API_DOMAIN and this one does not: the old directory cannot be derived, so it is left alone.
-	echo "rename: note: api/${new_domain} does not exist; if an earlier rename set the package segment with API_DOMAIN, pass it again" >&2
-fi
 
 if [ -z "$changed" ]; then
 	echo "rename: module name ${new} and proto package segment ${new_domain} already in place, nothing changed"

@@ -4,19 +4,19 @@ go 1.27.0
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2
-	buf.build/go/protovalidate v1.4.0
+	buf.build/go/protovalidate v1.4.1
 	github.com/BurntSushi/toml v1.6.0
-	github.com/go-keel/keel v0.1.0
-	github.com/go-keel/keel/core/kasynq v0.0.0-20261113130539-36f85dd04c17
-	github.com/go-keel/keel/core/kdb/mysql v0.0.0-20261113130539-36f85dd04c17
-	github.com/go-keel/keel/core/knats v0.0.0-20261113130539-36f85dd04c17
+	github.com/go-keel/keel v0.1.1
+	github.com/go-keel/keel/core/kasynq v0.0.0-20261119095434-f2ef390808c0
+	github.com/go-keel/keel/core/kdb/mysql v0.0.0-20261119095434-f2ef390808c0
+	github.com/go-keel/keel/core/knats v0.0.0-20261119095434-f2ef390808c0
 	github.com/go-kratos/kratos/v3 v3.0.0
-	github.com/go-sql-driver/mysql v1.10.1
+	github.com/go-sql-driver/mysql v1.10.2
 	github.com/gorilla/websocket v1.5.3
 	github.com/nicksnyder/go-i18n/v2 v2.7.0
 	go.uber.org/automaxprocs v1.6.0
-	golang.org/x/text v0.43.0
-	google.golang.org/genproto/googleapis/api v0.0.0-20261026165753-2ffab32bce7e
+	golang.org/x/text v0.44.0
+	google.golang.org/genproto/googleapis/api v0.0.0-20261118221215-c8830f628b3f
 	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
 	gorm.io/driver/mysql v1.6.0
@@ -24,7 +24,7 @@ require (
 )
 
 require (
-	cel.dev/cel-go v0.32.0 // indirect
+	cel.dev/cel-go v0.33.2 // indirect
 	cel.dev/expr v0.25.3 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/XSAM/otelsql v0.44.0 // indirect
@@ -44,9 +44,9 @@ require (
 	github.com/hibiken/asynq v0.26.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/klauspost/compress v1.20.3 // indirect
-	github.com/nats-io/nats.go v1.55.0 // indirect
-	github.com/nats-io/nkeys v0.4.16 // indirect
+	github.com/klauspost/compress v1.20.4 // indirect
+	github.com/nats-io/nats.go v1.56.0 // indirect
+	github.com/nats-io/nkeys v0.4.17 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/redis/go-redis/extra/rediscmd/v9 v9.23.0 // indirect
 	github.com/redis/go-redis/extra/redisotel/v9 v9.23.0 // indirect
@@ -72,9 +72,9 @@ require (
 	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/exp v0.0.0-20260820142414-ca536658362e // indirect
 	golang.org/x/net v0.60.0 // indirect
-	golang.org/x/sync v0.24.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/sync v0.25.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20261019180522-ce908d29299b // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20261110000943-09e21b237f2c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

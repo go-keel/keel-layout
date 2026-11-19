@@ -140,6 +140,12 @@ rename:
 check-sync:
 	@scripts/check-cross-repo-sync.sh
 
+# Following upstream: write upstream's shared files and kernel trees here, already carrying this repository's module
+# path (docs/upgrading-protocol.md). Shared segments of AGENTS.md / GLOSSARY.md are only reported.
+.PHONY: sync-upstream
+sync-upstream:
+	@WRITE=1 scripts/check-cross-repo-sync.sh
+
 # git hooks do not travel with a clone; run this once after forking. .githooks/pre-commit stops a commit that
 # changes the propagation surface (AGENTS.md / GLOSSARY.md / docs/ / scripts/ / Makefile) without touching
 # UPGRADING.md, and checks for dead links; the criterion and exemption are at the top of that file. Automatic

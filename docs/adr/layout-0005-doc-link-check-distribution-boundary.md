@@ -33,9 +33,8 @@ Three rejected paths:
    repository certainly adds to it. The list would grow with every derived repository's shape, while the script must
    stay identical across the template chain.
 2. **Rewrite the demo-domain paths in the docs as placeholders**: cures only the current batch. The `cmd/` renames
-   still fail, and every derived repository has to do another round of content rewriting, of the same nature as
-   "overwriting the whole directory is not free" in `layout-0001-template-upgrade-strategy.md`: one-off manual work
-   spread to every derived repository and redone each time.
+   still fail, and every derived repository has to do another round of content rewriting: one-off manual work spread
+   to every derived repository and redone each time.
 3. **Let derived repositories configure their own exclusions**: the script forks per repository on the spot. Zero
    diff is what lets a derived repository keep following upstream long term; breaking it for a checker costs far more
    than it gains.

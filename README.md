@@ -113,6 +113,9 @@ responsible for (see `docs/adr/layout-0005-doc-link-check-distribution-boundary.
 `scripts/check-english.sh` line in the `check` target: requiring English is this template's own rule, and your
 service writes in its team's language. Do this before deleting the examples, or the final `make check` below fails.
 
+**A repo that will itself be forked** sets `TEMPLATE_MODULE` and `TEMPLATE_DOMAIN` at the top of `scripts/rename.sh`
+to its own module path and package segment once its rename is done, so its own forks can run the one rename.
+
 **A repo nobody will fork** writes no ledger entries of its own: delete the ledger check (the first `if` block) in
 `.githooks/pre-commit`, or nearly every commit is stopped. Its `UPGRADING.md` then holds only "following upstream"
 entries.
@@ -215,7 +218,9 @@ Both greps exclude `*.pb.go`: the marker comments are carried into generated art
 on regeneration; do not edit generated artifacts by hand. The raw route examples all sit under the `/examples/`
 prefix and go away with the first two steps.
 
-**Start the ledger, then commit.** Delete every entry in `UPGRADING.md`, keeping its introduction: they are upstream's
+### Start the ledger, then commit
+
+Delete every entry in `UPGRADING.md`, keeping its introduction: they are upstream's
 history, already in your fork. Add the first "following upstream" entry, your sync point (`docs/upgrading-protocol.md`):
 
 ```markdown
@@ -223,7 +228,7 @@ history, already in your fork. Add the first "following upstream" entry, your sy
 
 > Follows keel-layout <short hash of the keel-layout commit you forked>
 
-Forked with `make rename MODULE=<your module>` (plus any `API_DOMAIN=` you passed); later overwrites rerun it the same way.
+Forked with `make rename MODULE=<your module>` (plus any `API_DOMAIN=` you passed).
 ```
 
 Then commit everything with `git add -A && git commit`: the ledger is in the commit, so the hook lets it through.

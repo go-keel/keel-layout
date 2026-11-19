@@ -21,12 +21,12 @@
 # where derived repositories may add files of their own (such as a CLI-generated component directory).
 #
 # `norm` means "compare after normalizing": first replace the upstream module path (the module line of
-# each go.mod) and proto package segment (the one segment each compared tree references; not replaced
-# unless there is exactly one) with this repository's, run `.go` through gofmt, and when `.ts` / `.tsx`
-# still differ, reformat with this repository's frontend Biome (the nearest ancestor of the entry with
-# biome.json and installed dependencies); then compare byte for byte. It is for kernel trees carried
-# whole: their only legitimate difference from upstream is the two names make rename replaces, and
-# renaming reorders imports and changes line widths, so without reformatting every file would show red.
+# each go.mod) with this repository's, run `.go` through gofmt, and when `.ts` / `.tsx` still differ,
+# reformat with this repository's frontend Biome (the nearest ancestor of the entry with biome.json and
+# installed dependencies); then compare byte for byte. It is for kernel trees carried whole: their only
+# legitimate difference from upstream is the module path make rename replaces (a kernel's proto package
+# keeps its name in every repository), and renaming reorders imports and changes line widths, so without
+# reformatting every file would show red.
 # Without this mode the kernel, the part most worth guarding, could not be listed at all.
 #
 # `seg` means "compare only the shared segments", for entry files such as AGENTS.md and GLOSSARY.md that
@@ -41,6 +41,13 @@
 # stale. Segments hold only repository-neutral content with no module path, so seg is never combined
 # with norm; it applies to single files only, not directories.
 #
+# `WRITE=1` (make sync-upstream) also writes: every file and norm entry is brought in line with upstream, missing
+# files are written, differing ones overwritten (norm entries already carrying this repository's names, the same
+# normalization the comparison uses) and extra ones in a directory entry deleted, excluded subtrees untouched. This is
+# how a derived repository takes upstream's kernel and shared files when it follows, so the module rename runs only
+# once, when the repository is created, and never again over its own files. seg entries are only reported: a shared
+# segment sits among this repository's own text, so it is replaced by hand.
+#
 # **Without a local clone of upstream the script skips and says so.** A derived repository keeps one,
 # checked out at its sync point (docs/upgrading-protocol.md): this comparison is how it finds changes to
 # shared files and kernel trees, which carry no ledger entry of their own.
@@ -51,23 +58,29 @@ list=scripts/cross-repo-sync.list
 [ -f "$list" ] || { echo "cross-repo sync: no list, skipped"; exit 0; }
 
 up_root=${UPSTREAM_DIR:-..}
+write=
+[ "${WRITE:-}" = 1 ] && write=1
 miss=0
 bad=0
 n=0
 
-# Compares one pair of files verbatim. In norm mode the upstream module path and package segment are first
-# replaced with this repository's, `.go` goes through gofmt, and `.ts` / `.tsx` through Biome only when they
-# still differ (most files contain no package name; comparing once first avoids starting Biome per file).
-cmp_one() { # <src> <dst> <mode>
+# Prints upstream's file as this repository should hold it: in norm mode the upstream module path replaced with this
+# repository's, `.go` through gofmt and `.ts` / `.tsx` through Biome. The comparison and the writing both use it, so
+# a written file always compares equal.
+render_one() { # <src> <dst> <mode>
 	case "$3:$1" in
-	norm:*.go) sed "$norm_expr" "$1" | gofmt | cmp -s - "$2" ;;
-	norm:*.ts | norm:*.tsx)
-		sed "$norm_expr" "$1" | cmp -s - "$2" ||
-			sed "$norm_expr" "$1" | biome_format "$2" | cmp -s - "$2"
-		;;
-	norm:*) sed "$norm_expr" "$1" | cmp -s - "$2" ;;
-	*) cmp -s "$1" "$2" ;;
+	norm:*.go) sed "$norm_expr" "$1" | gofmt ;;
+	norm:*.ts | norm:*.tsx) sed "$norm_expr" "$1" | biome_format "$2" ;;
+	norm:*) sed "$norm_expr" "$1" ;;
+	*) cat "$1" ;;
 	esac
+}
+
+# Compares one pair of files verbatim, in norm mode against render_one. Most files match once the module path is
+# replaced, so that is tried first: gofmt and Biome (one process start per file) run only when it still differs.
+cmp_one() { # <src> <dst> <mode>
+	[ "$3" = norm ] || { cmp -s "$1" "$2"; return; }
+	sed "$norm_expr" "$1" | cmp -s - "$2" || render_one "$@" | cmp -s - "$2"
 }
 
 # Formats standard input with this repository's frontend Biome config; <path> only tells Biome the file type
@@ -87,29 +100,6 @@ frontend_root() { # <path>
 		fi
 		d=$(dirname "$d")
 	done
-}
-
-# The proto package segment this tree references: the segment in `api/<segment>/vN` and `api.<segment>.vN`,
-# the two forms domain_expr below replaces; prints nothing if there is none or more than one (then the
-# segment is not replaced). It does not count directories under api/: derived repositories often have more
-# than one API package, while the kernel tree references only the one rename produced. Test files are skipped:
-# a test may build a fixture under a package name of its own (api.test.v1).
-api_domain() { # <repository root> <path>
-	(cd "$1" && grep -rhoE --exclude='*_test.go' '(^|[^A-Za-z0-9_-])api[/.][a-z][a-z0-9_]*[/.]v[0-9]' "$2" 2>/dev/null) |
-		sed -E 's#.*api[/.]([a-z0-9_]+)[/.]v[0-9]$#\1#' | sort -u |
-		awk '{ n++; s = $0 } END { if (n == 1) printf "%s", s }'
-}
-
-# Package segment replacement uses the same forms as scripts/rename.sh: `api/<segment>/`, `api.<segment>.`,
-# and proto `import "<segment>/`, with a left boundary so longer names are not hit. A package segment has
-# only lowercase letters, digits and _, so it needs no escaping in a regex.
-domain_expr() { # <old segment> <new segment>
-	if [ -z "$1" ] || [ -z "$2" ] || [ "$1" = "$2" ]; then
-		return 0
-	fi
-	printf '%s' ";s#^api/$1/#api/$2/#;s#\\([^A-Za-z0-9_-]\\)api/$1/#\\1api/$2/#g"
-	printf '%s' ";s#^api\\.$1\\.#api.$2.#;s#\\([^A-Za-z0-9_]\\)api\\.$1\\.#\\1api.$2.#g"
-	printf '%s' ";s#import \"$1/#import \"$2/#g"
 }
 
 # Names of the shared segments in an upstream file (deduplicated). Names have only letters, digits, _ and -,
@@ -207,7 +197,7 @@ while read -r repo path rest; do
 			continue
 		fi
 		fe=
-		if list_files . "$path" | grep -qE '\.tsx?$'; then
+		if { list_files "$up_root/$repo" "$path"; list_files . "$path"; } | grep -qE '\.tsx?$'; then
 			fe=$(frontend_root "$path")
 			if [ -z "$fe" ]; then
 				miss=$((miss + 1))
@@ -215,11 +205,22 @@ while read -r repo path rest; do
 				continue
 			fi
 		fi
-		norm_expr="s#${up_mod}#${my_mod}#g$(domain_expr "$(api_domain "$up_root/$repo" "$path")" "$(api_domain . "$path")")"
+		norm_expr="s#${up_mod}#${my_mod}#g"
 	fi
 
 	for rel in $(list_files "$up_root/$repo" "$path"); do
-		if [ ! -f "$rel" ]; then
+		if [ -n "$write" ] && { [ ! -f "$rel" ] || ! cmp_one "$up_root/$repo/$rel" "$rel" "$mode"; }; then
+			mkdir -p "$(dirname "$rel")"
+			if render_one "$up_root/$repo/$rel" "$rel" "$mode" >"$rel.sync-tmp"; then
+				mv "$rel.sync-tmp" "$rel"
+				if [ -x "$up_root/$repo/$rel" ]; then chmod +x "$rel"; fi
+				echo "  wrote ${rel}  <- $repo"
+			else
+				rm -f "$rel.sync-tmp"
+				echo "  could not write ${rel} (rendering the upstream file failed; see the error above)"
+				bad=$((bad + 1))
+			fi
+		elif [ ! -f "$rel" ]; then
 			echo "  missing ${rel} (the list says it is carried from ${repo}, but this repository does not have it)"
 			bad=$((bad + 1))
 		elif ! cmp_one "$up_root/$repo/$rel" "$rel" "$mode"; then
@@ -237,7 +238,10 @@ while read -r repo path rest; do
 	done
 	# Reverse direction: an extra file in a directory carried whole is drift too (a no-op for single files)
 	for rel in $(list_files . "$path"); do
-		if [ ! -f "$up_root/$repo/$rel" ]; then
+		if [ ! -f "$up_root/$repo/$rel" ] && [ -n "$write" ]; then
+			rm "$rel"
+			echo "  deleted ${rel} (upstream ${repo} has no such file)"
+		elif [ ! -f "$up_root/$repo/$rel" ]; then
 			echo "  extra ${rel} (upstream ${repo} has no such file)"
 			bad=$((bad + 1))
 		fi

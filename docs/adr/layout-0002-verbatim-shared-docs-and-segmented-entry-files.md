@@ -14,7 +14,7 @@ repository does not have".
 1. **Convention docs are shared verbatim.** Guides and practices are shared files; derived repositories follow them
    and never rewrite them, guarded by `make check-sync`. Content specific to a derived repository goes into a
    separate file. Changes to shared files alone are not in the ledger: when following, downstream runs
-   `make check-sync` and overwrites each file it reports, whole.
+   `make sync-upstream`, which writes each shared file whole.
 2. **Conventions contain only general content independent of any business.** They cite no repository's demo code,
    demo routes, demo script names or concrete config values: derived repositories usually delete the demo code, and a
    convention citing it is wrong there. Where the demo code is, the repository holding it says outside the segments

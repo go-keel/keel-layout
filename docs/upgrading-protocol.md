@@ -47,13 +47,14 @@ in your clone of the upstream repository, run
         │
         ▼
    decide entry by entry → follow: run the entry's steps, oldest first
-                    (kernel overwrites as usual: overwrite the trees + `make rename` with the fork's parameters)
                     (generated artifacts are never copied or merged: follow their sources, regenerate with
                      `make all`, see `docs/adr/layout-0003-generated-artifacts-committed.md`)
         │
         ▼
-   UPSTREAM_DIR=<parent directory of the upstream clone> make check-sync
-   for each mismatch: overwrite the whole shared file, or the whole shared segment, until it passes
+   UPSTREAM_DIR=<parent directory of the upstream clone> make sync-upstream
+   writes upstream's shared files and kernel trees here, already carrying your module path;
+   then make all (synced .proto files need their generated code), and replace each shared segment it reports by
+   hand, until make check-sync passes
                     (changes to shared files alone are not in the ledger; this step catches them, see "Shared files")
         │
         ▼
@@ -70,9 +71,11 @@ does not offer it again; to take it up later, read it in the upstream ledger. An
 or the Keel version cannot be declined: `make check-sync` keeps reporting the first two, and the upstream code is
 written against that version.
 
-**Overwriting the kernel.** Overwrite each tree registered with `norm` in `scripts/cross-repo-sync.list`: a directory
-entry whole (delete what upstream deleted), a directory's `!` subtree and a per-file entry file by file, keeping the
-files your repository added there. Then rerun `make rename` with the parameters your first following entry records.
+**Taking the kernel and shared files.** `make sync-upstream` writes every file and `norm` entry of
+`scripts/cross-repo-sync.list` from the upstream clone: a directory entry whole (it deletes what upstream deleted), its
+`!` subtrees left alone, and `norm` entries already renamed to your module path. Never copy them by
+hand and never rerun `make rename`: the rename runs once, when the repository is created, and rerunning it would
+rewrite your own files.
 
 **Between syncs, keep the upstream clone at your sync point** (`git checkout <sync point>` in the clone): `make check`
 runs `make check-sync` against it, and a clone ahead of your sync point fails unrelated work. Move it forward only
@@ -130,8 +133,8 @@ shared marker in its header, not in the sync list), registered in the routing ta
 `AGENTS.md`. Never change a shared file or segment to write about your own repository.
 
 An upstream change to a shared file or segment needs no push downstream and no ledger entry. Syncing happens when
-downstream follows: whichever shared file `make check-sync` reports is overwritten whole, whichever shared segment it
-reports is overwritten whole (begin marker to end marker, both lines included), with no line-by-line comparison. A
+downstream follows: `make sync-upstream` writes every shared file whole, and whichever shared segment it reports is
+replaced whole by hand (begin marker to end marker, both lines included), with no line-by-line comparison. A
 mismatch reported by `scripts/check-cross-repo-sync.sh` (`make check-sync`) is therefore not a fault, only a reminder
 that upstream moved and you have not followed yet.
 
