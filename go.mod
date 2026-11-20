@@ -6,7 +6,7 @@ require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2
 	buf.build/go/protovalidate v1.4.1
 	github.com/BurntSushi/toml v1.6.0
-	github.com/go-keel/keel v0.1.1
+	github.com/go-keel/keel v0.1.2
 	github.com/go-keel/keel/core/kasynq v0.0.0-20261119095434-f2ef390808c0
 	github.com/go-keel/keel/core/kdb/mysql v0.0.0-20261119095434-f2ef390808c0
 	github.com/go-keel/keel/core/knats v0.0.0-20261119095434-f2ef390808c0
