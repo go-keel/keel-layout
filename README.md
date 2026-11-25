@@ -41,6 +41,7 @@ other test commands need real servers (`docs/guides/testing.md`):
 ```bash
 make check test   # static checks, then unit tests: a change is done when this passes
 make integration  # narrow integration tests; needs the four TEST_* variables
+make e2e          # end-to-end tests: the binaries against the same servers, once per database round
 ```
 
 **To actually start a process, first check what it needs**; the three cmds do not depend on the same set:
@@ -159,15 +160,15 @@ forking. The boundary of the example is marked with comments, and only where the
 - **"Example: delete after forking (through "Example end")"**: delete everything down to and including the matching
   "Example end" line.
 
-After every deletion, `go build ./...` reports imports that are now unused; delete them too. Three steps, in this
-order:
+After every deletion, `go build ./...` (and `go vet -tags e2e ./...` for `e2e/`, which it does not compile) reports
+imports that are now unused; delete them too. Three steps, in this order:
 
 1. **Delete whole example files.** Delete every file whose header says "Example file: delete the whole file after
    forking", then regenerate (`make proto` first clears the generated artifacts under `api/`, so a deleted proto
    leaves no orphans):
 
    ```bash
-   grep -rl "Example file: delete the whole file after forking" api internal migrations --exclude='*.pb.go' | xargs rm
+   grep -rl "Example file: delete the whole file after forking" api internal migrations e2e --exclude='*.pb.go' | xargs rm
    make proto
    ```
 
@@ -175,10 +176,12 @@ order:
    your GORM models; delete its marked block now, because it refers to the deleted `biz.Todo`. Both
    `migrations/business/<dialect>/0_schema.sql` stay too: step 3 deletes the example table from them. If the service
    runs on one database only, delete the other dialect's directory now (`docs/guides/domain-model.md`, "Schema"). With the example's data-layer tests gone, `make integration` runs no narrow
-   integration test until you add your own.
+   integration test until you add your own; with the example's end-to-end cases gone, `make e2e` only starts api and
+   svc in each round and stops them (starting the worker, which step 2 leaves with no server, is example code).
 
 2. **Fix the interwoven places by compile errors.** `go build ./...` points at the broken references in
-   `internal/server/`, `internal/service/` and `cmd/*`; delete them one by one. It reports one batch per run, and
+   `internal/server/`, `internal/service/` and `cmd/*`; delete them one by one, then do the same with
+   `go vet -tags e2e ./...` for what is left in `e2e/`. It reports one batch per run, and
    for a package with many errors stops after the first ten ("too many errors"), so delete and run again until it
    compiles; this usually takes several rounds. In this step the compiler is the marker; when an error sits inside a
    marked block, delete the whole block.
@@ -210,7 +213,7 @@ order:
    place marked "Example: delete after forking", by the scope rules above:
 
    ```bash
-   grep -rn "Example: delete after forking" api internal configs cmd scripts migrations --exclude='*.pb.go'
+   grep -rn "Example: delete after forking" api internal configs cmd scripts migrations e2e --exclude='*.pb.go'
    ```
 
    Once there are no hits, regenerate with `make proto && make config`. The i18n message files carry no markers (goi18n

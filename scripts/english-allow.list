@@ -4,3 +4,4 @@ internal/i18n/*zh*            # end-user localisation
 internal/i18n/bundle_test.go  # asserts the zh translation
 internal/biz/todo_test.go     # test data: title length counted in characters. Example: delete after forking
 scripts/check-english.sh      # listed so its own pattern can never trip it
+e2e/*_test.go                 # test data and the zh translations asserted end to end. Example: delete after forking

@@ -3,6 +3,34 @@
 This file holds entries only, one per change that actually happened; how to write entries and how to follow
 upstream: `docs/upgrading-protocol.md`.
 
+## 2026-11-25 · 2
+
+**What changed.** End-to-end tests arrive: `make e2e` builds `cmd/*`, runs the binaries as processes against the four
+test servers and tests them from outside, once per round of the table in `e2e/main_test.go` (template: everything on
+MySQL, everything on PostgreSQL). The process work is the shared file `e2e/harness/harness.go`; the layer is described
+in `docs/guides/testing.md`, "End-to-end tests". The harness starts each binary with only the committed
+`configs/config.yaml` and `configs/app.yaml` and reaches the per-environment fields through `KEEL_` variables, so
+`config.yaml` gains placeholders with the old values as defaults: `${LOGGER_FORMAT:text}`, `${HTTP_ADDR:...}`,
+`${GRPC_ADDR:...}`, `${OTEL_ENDPOINT:...}`, `${DB_DEFAULT_DRIVER:...}`, `${DB_DEFAULT_SOURCE:...}`,
+`${REDIS_ADDR:...}` and `${NATS_URL:...}`. `internal/testdb` gains `Create(t, database, dialect, name)`, which builds
+one named database and returns the DSN a service connects with; `harness.Config` reads a value from the committed
+config, so cases do not spell out the repository's own names. The Todo example's cases in `e2e/` carry the usual
+example markers, and so does starting the worker, which has no server once the example is gone.
+
+**Why.** Unit and narrow integration tests never run the binary that ships; the end-to-end layer checks startup,
+config loading, the processes working together (HTTP → event → task) and both databases, instead of a manual test run.
+
+**How to apply.**
+
+1. Add `keel-layout e2e/harness/harness.go` to `scripts/cross-repo-sync.list` (with your direct upstream in the first
+   field), take it and the new `internal/testdb/testdb.go` with `make sync-upstream`, and copy `e2e/main_test.go` and
+   `e2e/helpers_test.go` from upstream, dropping the example parts.
+2. Put the same placeholders into your `configs/config.yaml`, keeping your current values as the defaults; one
+   `${DB_<NAME>_DRIVER}` and `${DB_<NAME>_SOURCE}` pair per database.
+3. Edit `rounds` in `e2e/main_test.go` to the databases and drivers you deploy, and `setup` to the processes you run.
+4. Add the `e2e` target from upstream's `Makefile`, set the four `TEST_*` variables and run `make e2e`; write cases for
+   your own endpoints and flows as you change them.
+
 ## 2026-11-25 · 1
 
 **What changed.** Tests come in three layers, one command each: unit tests (`make test`), narrow integration tests

@@ -41,7 +41,7 @@ func ForEachDB(t *testing.T, databases []string, fn func(t *testing.T, db *gorm.
 	dialects, scripts := schemaScripts(t, databases)
 	for _, d := range dialects {
 		t.Run(d, func(t *testing.T) {
-			db := openFresh(t, d)
+			db, _ := openFresh(t, d, fmt.Sprintf("it_%d", time.Now().UnixNano()))
 			for _, s := range scripts[d] {
 				b, err := os.ReadFile(s)
 				if err != nil {
@@ -60,15 +60,7 @@ func ForEachDB(t *testing.T, databases []string, fn func(t *testing.T, db *gorm.
 // migrations/<database>/<dialect>/0_schema.sql of the databases asked for, sorted by database.
 func schemaScripts(t *testing.T, databases []string) ([]string, map[string][]string) {
 	t.Helper()
-	root, err := filepath.Abs(".")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, err := os.Stat(filepath.Join(root, "go.mod")); err != nil; _, err = os.Stat(filepath.Join(root, "go.mod")) {
-		if root = filepath.Dir(root); root == filepath.Dir(root) {
-			t.Fatal("go.mod not found above the test package")
-		}
-	}
+	root := repoRoot(t)
 	found, err := filepath.Glob(filepath.Join(root, "migrations", "*", "*", "0_schema.sql"))
 	if err != nil || len(found) == 0 {
 		t.Fatalf("no migrations/<database>/<dialect>/0_schema.sql found (%v)", err)
@@ -113,28 +105,72 @@ func schemaScripts(t *testing.T, databases []string) ([]string, map[string][]str
 	return dialects, scripts
 }
 
-// openFresh creates a uniquely named database on the server of dialect's variable, drops it when the test ends, and
-// returns a connection to it that translates driver errors as kdb does.
-func openFresh(t *testing.T, dialect string) *gorm.DB {
+// Create creates the database name on dialect's server, builds it from migrations/<database>/<dialect>/0_schema.sql,
+// drops it when the test ends, and returns the DSN a service connects to it with (for database.<name>.source; on
+// MySQL with the UTC parameters configs/config.yaml requires). End-to-end tests use it to give each round its own
+// databases; stop the processes using a database before the test ends, which t.Cleanup's order does when they start
+// after Create.
+func Create(t *testing.T, database, dialect, name string) string {
+	t.Helper()
+	if _, ok := dsnVars[dialect]; !ok {
+		t.Fatalf("testdb.Create: unknown dialect %q; use mysql or postgres", dialect)
+	}
+	script := filepath.Join(repoRoot(t), "migrations", database, dialect, "0_schema.sql")
+	b, err := os.ReadFile(script)
+	if err != nil {
+		t.Fatalf("testdb.Create: %v", err)
+	}
+	db, dsn := openFresh(t, dialect, name)
+	if err := db.Exec(string(b)).Error; err != nil {
+		t.Fatalf("apply %s: %v", script, err)
+	}
+	if sqlDB, err := db.DB(); err == nil {
+		_ = sqlDB.Close() // the schema is in; the service opens its own connections
+	}
+	return dsn
+}
+
+// repoRoot returns the nearest directory above the test package that holds go.mod.
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.Abs(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, err := os.Stat(filepath.Join(root, "go.mod")); err != nil; _, err = os.Stat(filepath.Join(root, "go.mod")) {
+		if root = filepath.Dir(root); root == filepath.Dir(root) {
+			t.Fatal("go.mod not found above the test package")
+		}
+	}
+	return root
+}
+
+// openFresh creates the database name on the server of dialect's variable, drops it when the test ends, and returns
+// a connection to it that translates driver errors as kdb does, with the DSN a service would use for it.
+func openFresh(t *testing.T, dialect, name string) (*gorm.DB, string) {
 	t.Helper()
 	dsn := os.Getenv(dsnVars[dialect])
 	if dsn == "" {
-		t.Fatalf("%s is not set. make integration needs a real MySQL and PostgreSQL; see docs/guides/testing.md, \"data tests\"", dsnVars[dialect])
+		t.Fatalf("%s is not set. make integration and make e2e need a real MySQL and PostgreSQL; see docs/guides/testing.md", dsnVars[dialect])
 	}
-	name := fmt.Sprintf("it_%d", time.Now().UnixNano())
 	var server, fresh gorm.Dialector
+	var serviceDSN string
 	switch dialect {
 	case "mysql":
 		cfg, err := mysql.ParseDSN(dsn)
 		if err != nil {
 			t.Fatalf("TEST_MYSQL_DSN: %v", err)
 		}
-		cfg.MultiStatements = true
 		cfg.ParseTime = true
+		cfg.DBName = name
+		svc := cfg.Clone()
+		svc.Loc = time.UTC
+		svc.Params = map[string]string{"charset": "utf8mb4", "time_zone": "'+00:00'"}
+		serviceDSN = svc.FormatDSN()
+		cfg.MultiStatements = true
+		fresh = gormmysql.Open(cfg.FormatDSN())
 		cfg.DBName = ""
 		server = gormmysql.Open(cfg.FormatDSN())
-		cfg.DBName = name
-		fresh = gormmysql.Open(cfg.FormatDSN())
 	case "postgres":
 		u, err := url.Parse(dsn)
 		if err != nil || u.Scheme != "postgres" {
@@ -142,7 +178,8 @@ func openFresh(t *testing.T, dialect string) *gorm.DB {
 		}
 		server = postgres.Open(u.String())
 		u.Path = "/" + name
-		fresh = postgres.Open(u.String())
+		serviceDSN = u.String()
+		fresh = postgres.Open(serviceDSN)
 	}
 	admin, err := gorm.Open(server, &gorm.Config{Logger: logger.Discard})
 	if err != nil {
@@ -165,5 +202,5 @@ func openFresh(t *testing.T, dialect string) *gorm.DB {
 			_ = sqlDB.Close()
 		}
 	})
-	return db
+	return db, serviceDSN
 }

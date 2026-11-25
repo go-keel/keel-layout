@@ -186,6 +186,16 @@ integration:
 	done
 	$(GO_TEST) -tags integration -p 1 ./...
 
+# End-to-end tests (build tag e2e, e2e/): build the binaries, run them as processes against the same four servers and
+# test them from outside, once per round of the table in e2e/main_test.go. Narrow the run with ARGS, for example
+# make e2e ARGS='-run /postgres' for one round.
+.PHONY: e2e
+e2e:
+	@for v in TEST_MYSQL_DSN TEST_POSTGRES_DSN TEST_REDIS_ADDR TEST_NATS_URL; do \
+		[ -n "$$(printenv $$v)" ] || { echo "$$v is not set: make e2e needs all four TEST_* variables (docs/guides/testing.md)"; exit 1; }; \
+	done
+	$(GO_TEST) -tags e2e $(ARGS) ./e2e/...
+
 # golangci-lint runs with go run at a pinned version: nothing to install, not in go.mod. Default linters.
 GOLANGCI = github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 

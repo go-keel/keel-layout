@@ -322,9 +322,66 @@ func testArticleRepo(t *testing.T, db *gorm.DB) {
 
 ### End-to-end tests
 
-They live under `e2e/` (build tag `e2e`) and build the real binaries, run them as processes against the test servers
-and call them over HTTP and gRPC, once per database round listed in `e2e/`. Run them with `make e2e` after changing
-external behaviour.
+End-to-end tests run the binaries that ship, not the assembly code: they build each `cmd/<name>`, start it as a
+process against the test servers and test it from outside, over HTTP, gRPC, NATS and Redis. Everything is under
+`e2e/` with the build tag `e2e`; `make e2e` runs it (`go test -tags e2e ./e2e/...`), and `make e2e ARGS='-run /postgres'`
+narrows the run.
+
+**The harness** (`e2e/harness/harness.go`, a shared file: change it upstream) does the process work:
+
+- `harness.Build(t, "api", ...)` builds `./cmd/<name>` once per test binary with `go build` and `CGO_ENABLED=0`, as a
+  release is built; when the release build uses build tags, set `harness.BuildTags` to them before the first `Build`.
+  On Windows it adds the `.exe` suffix.
+- `harness.Workdir(t)` makes a temporary working directory holding only the committed `configs/config.yaml` and
+  `configs/app.yaml`, so a developer's `*.dev.yaml` never reaches a test. A test may edit the copies before starting.
+- `harness.Start(t, name, dir, env...)` starts the binary there and stops it when the test ends. The process gets
+  `KEEL_` variables that fill placeholders in `config.yaml`: `harness.ServerEnv` maps `TEST_REDIS_ADDR` and
+  `TEST_NATS_URL` to `${REDIS_ADDR}` and `${NATS_URL}`, sets `${LOGGER_FORMAT}` to `json` and points
+  `${OTEL_ENDPOINT}` at a sink that accepts and drops telemetry (tracing stays on, so logs carry trace IDs, and no
+  shutdown waits on an absent collector); `harness.DBEnv("default", driver, dsn)` fills `${DB_DEFAULT_DRIVER}` and
+  `${DB_DEFAULT_SOURCE}`; the test adds the listen address (`KEEL_HTTP_ADDR`, `KEEL_GRPC_ADDR`, from
+  `harness.FreeAddr`). **Keep these placeholders in `config.yaml`**; each has the local value as its default, so
+  running the service by hand is unchanged.
+- `harness.Config(t, "config.yaml", "app.domain")` reads a value from the committed config: assert against it instead
+  of spelling out the service's own names (application name, cookie name, brand), which a fork replaces.
+- Readiness: `WaitHTTP` (an HTTP server's `/health`), `WaitDial` (a gRPC port) or `WaitLog` on a startup line.
+- `p.Stop(t)` stops as a deployment does: SIGTERM on macOS and Linux, and the test fails unless the process exits
+  with 0 in time. Windows has no SIGTERM to send; there the process is killed and nothing is asserted (a clean stop is
+  the framework's behaviour, covered on macOS).
+
+**Rounds.** `main_test.go` in `e2e/` holds the table `rounds`: one row per deployment to test, naming the driver of each
+database (the template: everything on MySQL, everything on PostgreSQL). Edit it to match how you deploy: one
+database only, a different driver per database. Each round is one subtest and starts from empty servers:
+`testdb.Create` builds a fresh database `e2e_<round>_<nanoseconds>` per database from
+`migrations/<database>/<dialect>/0_schema.sql` (the service never creates tables) and drops it afterwards; Redis
+database 0 is flushed and every NATS stream deleted at the start of the round, and left as they are at the end for
+investigation. Rounds run one after another, and so do the cases in a round, in the order of the list `cases`.
+
+**Cases.** A case is `func(t *testing.T, e *env)`, listed in `cases`, against the round's shared processes:
+
+- Make your own data with a unique name (`uniq`), and assert only on it, or against the database (`e.db`) at the
+  time: other cases add rows too.
+- A case that needs a different config starts a process of its own: edit a `Workdir` copy, or pass extra `KEEL_`
+  variables. Do not change the shared processes' config, except `app.yaml` when testing a reload.
+- Background work is asserted on the JSON log: `p.WaitLog(t, msg, fields)` waits up to 10 seconds for a line with
+  that `msg` and those fields, and on timeout fails with the process's last 50 lines; `p.Mark()` with `WaitLogSince`
+  and `LogsSince` look only at what follows a point. State in between comes from the component's own admin API (the
+  NATS client, asynq's `Inspector`), and what the service has no endpoint for (locks, rate limits, IDs) from calling
+  the Keel package directly.
+- No fixed sleep: poll for the condition with a deadline (`waitFor`). The exception is waiting on a server's clock,
+  such as a rate-limit window.
+- A case that stops or breaks a shared process restores it, or goes last.
+- One comment line per case names its basis: the section of the usage docs whose behaviour it checks.
+
+```go
+// Basis: docs/<page>.md, "<section>".
+func testArticlePublishedNotifies(t *testing.T, e *env) {
+    id := e.createArticle(t, uniq("published"))
+    e.worker.WaitLog(t, "subscribers notified", map[string]any{"article_id": id})
+}
+```
+
+Run `make e2e` after changing external behaviour: an endpoint, an event or task flow, a config key, startup.
 
 ## Anti-patterns
 
