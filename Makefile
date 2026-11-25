@@ -162,27 +162,41 @@ init-hooks:
 check-mod:
 	GOWORK=off go build ./...
 
-# Real-database tests (build tag integration): the data-layer cases, once per dialect kept under migrations/, each on a
-# fresh database built from migrations/*/<dialect>/0_schema.sql. Needs TEST_MYSQL_DSN, e.g.
-# 'root:pass@tcp(127.0.0.1:3306)/?parseTime=true', and TEST_POSTGRES_DSN, e.g.
-# 'postgres://postgres:pass@127.0.0.1:5432/postgres?sslmode=disable' (docs/guides/testing.md); a missing
-# variable fails. Not part of make check.
+# The test commands (docs/guides/testing.md). Like check-mod, they turn go.work off: derived repositories test against
+# the versions in go.mod, and only this way shows whether a test passes only because of unreleased behavior in the
+# local Keel source. Built with CGO_ENABLED=0, like the binaries; -race is added on macOS only, where it needs no cgo,
+# so on Linux and Windows the tests run without the race detector.
+GO_TEST = GOWORK=off CGO_ENABLED=0 go test $(if $(filter Darwin,$(shell uname -s)),-race) -count=1
+
+# Unit tests: no server and no environment variable needed.
+.PHONY: test
+test:
+	$(GO_TEST) ./...
+
+# Narrow integration tests (build tag integration), the unit tests again with them, one package at a time. They need
+# four real servers for tests only, started however you like, and their addresses in these variables, for example:
+#   TEST_MYSQL_DSN='root:pass@tcp(127.0.0.1:3306)/?parseTime=true'
+#   TEST_POSTGRES_DSN='postgres://postgres:pass@127.0.0.1:5432/postgres?sslmode=disable'
+#   TEST_REDIS_ADDR=127.0.0.1:6379
+#   TEST_NATS_URL=nats://127.0.0.1:4222    (JetStream enabled)
 .PHONY: integration
 integration:
-	GOWORK=off go test -race -tags integration -count=1 -p 1 ./...
+	@for v in TEST_MYSQL_DSN TEST_POSTGRES_DSN TEST_REDIS_ADDR TEST_NATS_URL; do \
+		[ -n "$$(printenv $$v)" ] || { echo "$$v is not set: make integration needs all four TEST_* variables (docs/guides/testing.md)"; exit 1; }; \
+	done
+	$(GO_TEST) -tags integration -p 1 ./...
 
 # golangci-lint runs with go run at a pinned version: nothing to install, not in go.mod. Default linters.
 GOLANGCI = github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 
-# The agent's self-check: these repositories have no CI, so consistency is up to the agent; every command needed
-# to confirm the repository is clean, in one. Run it after changing code or docs; it stops at the first failing
+# The agent's self-check: these repositories have no CI, so consistency is up to the agent; every static check needed
+# to confirm the repository is clean, in one. It runs no test: a change is done when make check test passes. Run it after changing code or docs; it stops at the first failing
 # step. make echoes each command before running it, so on failure the last echoed line is the failing step.
 # lint-strict is this repository's (where distribution starts) self-check tier; a derived repository changes it
 # to lint after forking, for the reasons in the README section on forking.
-# Tests, like check-mod, turn go.work off: derived repositories test against the versions in go.mod, and only
-# this way shows whether a test passes only because of unreleased behavior in the local Keel source.
-# check-generated goes first: only once the generated files come from the current sources do the build and tests
-# that follow test the real thing. It needs buf installed (make init).
+# go vet runs once per build tag (none, integration, e2e), so every test file compiles.
+# check-generated goes first: only once the generated files come from the current sources do the build and checks
+# that follow check the real thing. It needs buf installed (make init).
 .PHONY: check
 check:
 	$(MAKE) check-generated
@@ -193,8 +207,8 @@ check:
 	go build ./...
 	go vet ./...
 	GOWORK=off go vet -tags integration ./...
+	GOWORK=off go vet -tags e2e ./...
 	GOWORK=off go run $(GOLANGCI) run ./...
-	GOWORK=off go test -race ./... -count=1
 	buf lint
 	$(MAKE) check-mod
 	$(MAKE) lint-strict

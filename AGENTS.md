@@ -16,8 +16,10 @@ in new files routed from outside the segments.
 
 ## Done
 
-A change is done when `make check` passes; run it before every commit. After changing data-layer code or a migration,
-also run `make integration`. Generated files (`*.pb.go`, `*_grpc.pb.go`, `*_http.pb.go`,
+A change is done when `make check test` passes (static checks, then unit tests); run it before every commit. After
+changing code that talks to a server (data-layer code, a migration, Redis or NATS code), also run `make integration`;
+after changing external behaviour, also run `make e2e`. The test layers and the servers they need:
+`docs/guides/testing.md`. Generated files (`*.pb.go`, `*_grpc.pb.go`, `*_http.pb.go`,
 `*_errors.pb.go`, `openapi.yaml`, and `third_party/keel|protovalidate|googleapis|kratos`) come only from `make all`;
 never edit them, never `sed` a `.pb.go`. Another imported `.proto` goes, vendored at a fixed version, into a directory
 of your own under `third_party/`, declared as a module in `buf.yaml`.

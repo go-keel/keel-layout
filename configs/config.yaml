@@ -41,8 +41,7 @@ server:
 # DEFAULT CURRENT_TIMESTAMP in the table scripts still fills in the database server's local time, off by the zone
 # offset from rows Go writes.
 # On PostgreSQL instead: driver: postgres, source: postgres://user:pass@localhost:5432/keel?sslmode=disable (timestamptz
-# stores the instant, so no time-zone parameters), and the blank import in cmd/api and cmd/svc main.go becomes
-# github.com/go-keel/keel/core/kdb/postgres, added to go.mod at the version core/kdb/mysql has there.
+# stores the instant, so no time-zone parameters); cmd/api and cmd/svc main.go already import both drivers.
 database:
   default:
     driver: mysql

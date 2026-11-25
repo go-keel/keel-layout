@@ -1,6 +1,12 @@
-//go:build integration
+//go:build integration || e2e
 
-package data
+// Shared file: carried verbatim; never localized outside its source repository.
+// Checked by scripts/check-cross-repo-sync.sh; see docs/upgrading-protocol.md.
+
+// Package testdb gives narrow integration tests (build tag integration, run by make integration) and end-to-end tests
+// (build tag e2e, run by make e2e) real databases on every dialect the repository keeps schema scripts for. It is
+// test-only: the build tags keep it out of every other build.
+package testdb
 
 import (
 	"fmt"
@@ -15,8 +21,7 @@ import (
 	gormmysql "gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-
-	"github.com/go-keel/keel/core/kdb"
+	"gorm.io/gorm/logger"
 )
 
 // dsnVars names the variable that points at each dialect's test server.
@@ -25,13 +30,15 @@ var dsnVars = map[string]string{
 	"postgres": "TEST_POSTGRES_DSN",
 }
 
-// forEachDB runs fn once per dialect the repository runs on, as a subtest named after the dialect: the dialects every
-// migrations/<database>/ has a <dialect>/0_schema.sql for. Each run gets a fresh database on that dialect's server,
-// built from the complete schema of every database (migrations/*/<dialect>/0_schema.sql, as an operator builds a new
-// database) and dropped afterwards. A missing variable fails the test.
-func forEachDB(t *testing.T, fn func(t *testing.T, db *kdb.DB)) {
+// ForEachDB runs fn once per dialect the repository runs on, as a subtest named after the dialect: the dialects every
+// migrations/<database>/ has a <dialect>/0_schema.sql for. A repository on one database deletes the other dialect's
+// directories from the databases it owns, and the tests follow; a directory the kernel owns keeps both and does not
+// widen the set. Each run gets a fresh database on that dialect's server, built from
+// migrations/<database>/<dialect>/0_schema.sql of each database in databases (every database when databases is
+// empty), as an operator builds a new database, and dropped afterwards. A missing variable fails the test.
+func ForEachDB(t *testing.T, databases []string, fn func(t *testing.T, db *gorm.DB)) {
 	t.Helper()
-	dialects, scripts := schemaScripts(t)
+	dialects, scripts := schemaScripts(t, databases)
 	for _, d := range dialects {
 		t.Run(d, func(t *testing.T) {
 			db := openFresh(t, d)
@@ -44,14 +51,14 @@ func forEachDB(t *testing.T, fn func(t *testing.T, db *kdb.DB)) {
 					t.Fatalf("apply %s: %v", s, err)
 				}
 			}
-			fn(t, &kdb.DB{DB: db})
+			fn(t, db)
 		})
 	}
 }
 
-// schemaScripts returns the dialects every database directory has, sorted, and per dialect its
-// migrations/*/<dialect>/0_schema.sql, sorted by database.
-func schemaScripts(t *testing.T) ([]string, map[string][]string) {
+// schemaScripts returns the dialects every database directory has, sorted, and per dialect the
+// migrations/<database>/<dialect>/0_schema.sql of the databases asked for, sorted by database.
+func schemaScripts(t *testing.T, databases []string) ([]string, map[string][]string) {
 	t.Helper()
 	root, err := filepath.Abs(".")
 	if err != nil {
@@ -67,20 +74,36 @@ func schemaScripts(t *testing.T) ([]string, map[string][]string) {
 		t.Fatalf("no migrations/<database>/<dialect>/0_schema.sql found (%v)", err)
 	}
 	sort.Strings(found)
-	scripts := map[string][]string{}
-	databases := map[string]bool{}
+	want := map[string]bool{}
+	for _, d := range databases {
+		want[d] = true
+	}
+	has := map[string]map[string]bool{} // dialect -> databases that have it
+	all := map[string]bool{}
 	for _, s := range found {
 		dialect := filepath.Base(filepath.Dir(s))
+		database := filepath.Base(filepath.Dir(filepath.Dir(s)))
 		if _, ok := dsnVars[dialect]; !ok {
 			t.Fatalf("%s: unknown dialect directory %q; dialect directories are named after database.<name>.driver: mysql or postgres", s, dialect)
 		}
-		scripts[dialect] = append(scripts[dialect], s)
-		databases[filepath.Base(filepath.Dir(filepath.Dir(s)))] = true
+		all[database] = true
+		if has[dialect] == nil {
+			has[dialect] = map[string]bool{}
+		}
+		has[dialect][database] = true
 	}
 	var dialects []string
-	for dialect, ss := range scripts {
-		if len(ss) == len(databases) { // otherwise some database does not run on this dialect
-			dialects = append(dialects, dialect)
+	scripts := map[string][]string{}
+	for dialect, dbs := range has {
+		if len(dbs) != len(all) {
+			continue // some database does not run on this dialect
+		}
+		dialects = append(dialects, dialect)
+		for _, s := range found {
+			database := filepath.Base(filepath.Dir(filepath.Dir(s)))
+			if filepath.Base(filepath.Dir(s)) == dialect && (len(want) == 0 || want[database]) {
+				scripts[dialect] = append(scripts[dialect], s)
+			}
 		}
 	}
 	if len(dialects) == 0 {
@@ -121,14 +144,14 @@ func openFresh(t *testing.T, dialect string) *gorm.DB {
 		u.Path = "/" + name
 		fresh = postgres.Open(u.String())
 	}
-	admin, err := gorm.Open(server, &gorm.Config{})
+	admin, err := gorm.Open(server, &gorm.Config{Logger: logger.Discard})
 	if err != nil {
 		t.Fatalf("connect: %v", err)
 	}
 	if err := admin.Exec("CREATE DATABASE " + name).Error; err != nil {
 		t.Fatal(err)
 	}
-	db, err := gorm.Open(fresh, &gorm.Config{TranslateError: true})
+	db, err := gorm.Open(fresh, &gorm.Config{TranslateError: true, Logger: logger.Discard})
 	if err != nil {
 		t.Fatal(err)
 	}

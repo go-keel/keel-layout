@@ -3,7 +3,35 @@
 <!-- Shared file: carried verbatim; never localized outside its source repository.
      Checked by scripts/check-cross-repo-sync.sh; see docs/upgrading-protocol.md. -->
 
-Read this before writing tests for the biz, service or data layer.
+Read this before writing tests for the biz, service or data layer, or an end-to-end test.
+
+## Three layers
+
+Tests come in three layers (terms in `GLOSSARY.md`), each run by one command:
+
+| Layer | What it tests | Servers | Command |
+|---|---|---|---|
+| unit test | one package, connected to no server | none; a real HTTP server from `httptest` and hand-written fakes of this repository's own interfaces are allowed | `make test` |
+| narrow integration test | one package's boundary with a real server (build tag `integration`) | the real servers the `TEST_*` variables point at | `make integration` |
+| end-to-end test | whole features, through the external interfaces of the service run as processes (`e2e/`, build tag `e2e`) | the same | `make e2e` |
+
+A change is done when `make check test` passes (`make check` runs static checks only, no test). After changing code
+that talks to a server, also run `make integration`; after changing external behaviour, also run `make e2e`.
+
+**No emulators.** Databases, Redis and NATS are always real servers: no SQLite, miniredis or embedded NATS server.
+Only this repository's own interfaces are replaced (hand-written fakes), plus `httptest`. An emulator differs from the
+real server in details (SQLite once hid a MySQL reserved word and MySQL's `||`), and one way of doing each thing is
+enough.
+
+**Built like the binaries.** The three test commands build with `CGO_ENABLED=0`, as the production build does. The
+race detector (`-race`) is on only on macOS, where it needs no cgo: Keel and the templates are checked for races
+there, and tests run on Linux or Windows have no race detection.
+
+**Test servers.** `make integration` and `make e2e` need four real servers, started however you like, and their
+addresses in `TEST_MYSQL_DSN`, `TEST_POSTGRES_DSN`, `TEST_REDIS_ADDR` and `TEST_NATS_URL`; a missing one fails. The
+servers must be for tests only: tests create and drop databases, empty Redis database 0 (the only one they use, as in
+production and on a Redis Cluster) and delete every NATS stream. Two runs (`make integration` and `make e2e`, or two
+of either) must not use the same servers at once; nothing locks them.
 
 The code below uses the fictional `Article` domain (the same as in `docs/guides/api-endpoint.md`, `docs/guides/mq.md`
 and `docs/guides/task.md`). The repository need not contain it; replace it with your own domain.
@@ -16,17 +44,17 @@ and `docs/guides/task.md`). The repository need not contain it; replace it with 
 |---|---|---|
 | biz | hand-written fakes of biz interfaces (repo, port, `knats.Publisher`, `kasynq.Enqueuer`) | none |
 | service | real UseCase on a fake repo (service and biz tested together) | none |
-| data | the storage boundary: a fresh database per dialect, built from `migrations/*/<dialect>/0_schema.sql` | MySQL and PostgreSQL, `make integration` only |
+| data | the storage boundary: a fresh database per dialect, built from `migrations/*/<dialect>/0_schema.sql` | MySQL and PostgreSQL, `make integration` |
 | server / `di.go` | no unit tests; `make build` compiles them | none |
 
 2. Write the fake in the `_test.go` file of the layer under test: a small struct implementing the biz interface, with
    the compile-time assertion `var _ biz.XxxRepo = (*fakeXxxRepo)(nil)`, so an interface change fails the test build
    first.
 3. Table-driven cases: `cases := []struct{ name string; ... }` with `t.Run`.
-4. **`make check` passes with no database, Redis or NATS server.** Tests that need real storage are behind the build
-   tag `integration` (see "data tests").
+4. **`make test` passes with no database, Redis or NATS server and no environment variable.** Tests that need a real
+   server are behind the build tag `integration` (see "data tests").
 5. Assert behaviour the business can see (return values, domain errors, calls the fake recorded), never log output or
-   counts of internal calls. Done when `make check` passes.
+   counts of internal calls. Done when `make check test` passes.
 
 ## Code
 
@@ -258,7 +286,7 @@ logic.
 ### data tests: the storage boundary
 
 A repo implementation is about SQL and mapping, which fakes cannot test, so data tests run on the real database. They
-are `*_integration_test.go` files with `//go:build integration`; `make check` runs no data-layer tests,
+are `*_integration_test.go` files with `//go:build integration`; `make test` runs no data-layer tests,
 `make integration` runs them.
 
 ```go
@@ -266,19 +294,20 @@ are `*_integration_test.go` files with `//go:build integration`; `make check` ru
 
 // internal/data/<resource>_integration_test.go
 func TestArticleRepo(t *testing.T) {
-    forEachDB(t, testArticleRepo)
+    testdb.ForEachDB(t, nil, testArticleRepo)
 }
 
-func testArticleRepo(t *testing.T, db *kdb.DB) {
-    repo := NewArticleRepo(db)
+func testArticleRepo(t *testing.T, db *gorm.DB) {
+    repo := NewArticleRepo(&kdb.DB{DB: db})
     // Create, read back, list with filters, partial update, delete, then assert the domain errors.
 }
 ```
 
-- `forEachDB` is in `internal/data/testdb_integration_test.go`. It runs the test once per dialect the repository
-  runs on (the `<dialect>` directories every `migrations/<database>/` has), as a subtest named after the dialect.
-  Each run creates a fresh database on that dialect's server, applies the complete schema of every database
-  (`migrations/*/<dialect>/0_schema.sql`) and drops the database afterwards. The schema under test is therefore the
+- `testdb.ForEachDB` is in `internal/testdb` (build tags `integration || e2e`, shared by narrow integration and
+  end-to-end tests). It runs the test once per dialect the repository runs on (the `<dialect>` directories every
+  `migrations/<database>/` has), as a subtest named after the dialect. Each run creates a fresh database on that
+  dialect's server, applies `migrations/<database>/<dialect>/0_schema.sql` of the databases named in the second
+  argument (every database when it is `nil`) and drops the database afterwards. The schema under test is therefore the
   one a new database gets; there is no separate test DDL. Incremental scripts are not run by tests: run one by hand
   on a database built from `1_baseline.sql` and the scripts before it, and check the result matches `0_schema.sql`.
 - The servers come from `TEST_MYSQL_DSN` (`root:pass@tcp(127.0.0.1:3306)/?parseTime=true`) and `TEST_POSTGRES_DSN`
@@ -289,13 +318,22 @@ func testArticleRepo(t *testing.T, db *kdb.DB) {
   behaviour on both: that difference is what the second dialect is there to catch.
 - Run `make integration` after changing data-layer code or a migration.
 
-`make check` never needs a database or another server; `make integration` always needs real ones.
+`make check` and `make test` never need a server; `make integration` and `make e2e` always need real ones.
+
+### End-to-end tests
+
+They live under `e2e/` (build tag `e2e`) and build the real binaries, run them as processes against the test servers
+and call them over HTTP and gRPC, once per database round listed in `e2e/`. Run them with `make e2e` after changing
+external behaviour.
 
 ## Anti-patterns
 
 ```go
-// ❌ default tests connect to a real DB/Redis → red wherever there is no infrastructure
-// ✅ fakes by default; real storage behind the integration build tag (make integration)
+// ❌ unit tests connect to a real DB/Redis → red wherever there is no infrastructure
+// ✅ fakes by default; real servers behind the integration build tag (make integration)
+
+// ❌ an emulator (SQLite, miniredis, an embedded NATS server) standing in for a real server
+// ✅ the real server the TEST_* variable points at
 
 // ❌ a mock framework or code generation for fakes
 // ✅ hand-written fakes: small interfaces, explicit behaviour, a var _ compile-time assertion

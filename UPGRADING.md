@@ -3,6 +3,35 @@
 This file holds entries only, one per change that actually happened; how to write entries and how to follow
 upstream: `docs/upgrading-protocol.md`.
 
+## 2026-11-25 · 1
+
+**What changed.** Tests come in three layers, one command each: unit tests (`make test`), narrow integration tests
+(`make integration`) and end-to-end tests (`make e2e`); the terms are in the shared segment of `GLOSSARY.md` and the
+rules in `docs/guides/testing.md`. `make check` runs static checks only, no test, and vets the `integration` and `e2e`
+build tags too. `make integration` needs all four of `TEST_MYSQL_DSN`, `TEST_POSTGRES_DSN`, `TEST_REDIS_ADDR` and
+`TEST_NATS_URL`, pointing at servers for tests only. The test commands build with `CGO_ENABLED=0`, and add `-race`
+only on macOS. The database helper for tests moved from `internal/data/testdb_integration_test.go` to the shared
+package `internal/testdb` (build tags `integration || e2e`): `testdb.ForEachDB(t, databases, fn)` hands `fn` a
+`*gorm.DB`, and `databases` (`nil` for every database) picks the schema scripts applied. `cmd/api` and `cmd/svc`
+blank-import both `kdb/mysql` and `kdb/postgres`, so switching databases is a config change. Tests on Redis use
+database 0 only.
+
+**Why.** One command per layer: static checks and unit tests need no server and run before every commit, the slower
+layers run when a change calls for them. Real servers instead of emulators, because an emulator differs from the real
+server in details.
+
+**How to apply.**
+
+1. Wherever only `make check` ran (before commits, in CI), run `make check test`.
+2. Set `TEST_REDIS_ADDR` and `TEST_NATS_URL` next to the two DSNs for `make integration`, all on servers for tests only.
+3. Add `keel-layout internal/testdb/testdb.go` to `scripts/cross-repo-sync.list` (with your direct upstream in the
+   first field) and take the file with `make sync-upstream`. Delete `internal/data/testdb_integration_test.go`, and
+   in each `*_integration_test.go` replace `forEachDB(t, fn)` with `testdb.ForEachDB(t, nil, fn)`, where `fn` takes a
+   `*gorm.DB` and builds its repo with `NewXxxRepo(&kdb.DB{DB: db})`.
+4. Add `_ "github.com/go-keel/keel/core/kdb/postgres"` (or `kdb/mysql`) next to the existing driver import in each
+   `main.go` that uses `kdb`, then `go mod tidy`; or keep only the driver you deploy.
+5. Replace emulators in your own tests (SQLite, miniredis, an embedded NATS server) with the real test servers.
+
 ## 2026-11-24 · 1
 
 **What changed.** The template supports MySQL and PostgreSQL alike. Schema scripts moved one level down, into one

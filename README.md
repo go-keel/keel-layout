@@ -24,16 +24,23 @@ consumers, the task worker and the cron scheduler. The full directory layout is 
 
 ## Run it (this repo's example)
 
+**On Windows**, run every `make` command from Git Bash (installed with Git for Windows), with GNU make on its path
+(`scoop install make` or `winget install ezwinports.make`): the Makefile and `scripts/` are shell. There is no
+PowerShell or Go entry point instead. Tests there, as on Linux, run without the race detector
+(`docs/guides/testing.md`).
+
 ```bash
 make init      # installs only buf (pinned; the generator plugins are pinned in buf.gen.yaml, no install needed)
 make all       # proto + config + generate
 make build     # builds bin/api bin/svc bin/worker
 ```
 
-Tests run without any infrastructure (the biz/service layers use a fake repo):
+The unit tests run without any server or environment variable (the biz/service layers use a fake repo); the
+other test commands need real servers (`docs/guides/testing.md`):
 
 ```bash
-go test ./...
+make check test   # static checks, then unit tests: a change is done when this passes
+make integration  # narrow integration tests; needs the four TEST_* variables
 ```
 
 **To actually start a process, first check what it needs**; the three cmds do not depend on the same set:
@@ -52,7 +59,7 @@ cp configs/config.dev.example.yaml configs/config.dev.yaml
 
 # 2. Create tables: no AutoMigrate; a new database runs the complete schema by hand
 mysql -uroot -p123456 keel < migrations/business/mysql/0_schema.sql
-#    On PostgreSQL: switch driver, source and the driver import as the database section of configs/config.yaml says, then
+#    On PostgreSQL: switch driver and source as the database section of configs/config.yaml says, then
 #    psql -U postgres -d keel -v ON_ERROR_STOP=1 -f migrations/business/postgres/0_schema.sql
 
 # 3. Start a process
@@ -164,12 +171,11 @@ order:
    make proto
    ```
 
-   `internal/data/testdb_integration_test.go` stays: it builds the test databases from
-   `migrations/*/<dialect>/0_schema.sql` for your own data-layer tests. `internal/data/model.go` stays as the home of
+   `internal/data/model.go` stays as the home of
    your GORM models; delete its marked block now, because it refers to the deleted `biz.Todo`. Both
    `migrations/business/<dialect>/0_schema.sql` stay too: step 3 deletes the example table from them. If the service
-   runs on one database only, delete the other dialect's directory now (`docs/guides/domain-model.md`, "Schema"). With the example's data-layer tests gone, `make integration` runs no test until
-   you add your own.
+   runs on one database only, delete the other dialect's directory now (`docs/guides/domain-model.md`, "Schema"). With the example's data-layer tests gone, `make integration` runs no narrow
+   integration test until you add your own.
 
 2. **Fix the interwoven places by compile errors.** `go build ./...` points at the broken references in
    `internal/server/`, `internal/service/` and `cmd/*`; delete them one by one. It reports one batch per run, and
@@ -195,8 +201,8 @@ order:
    Keep the registration functions in `internal/server/` (`grpc.go`, `http.go`, `consumer.go`, `task.go`,
    `scheduler.go`) and `service.TaskHandler`, now empty, as the places for your first endpoints, consumer, task and
    cron job. With the webhook gone, `cmd/api` reads no field of `app.yaml`: rename its `wireApp` parameter to `_` and
-   copy the comment above `wireApp` in `cmd/svc/di.go`. With no database left, also delete the blank import of the
-   database driver (`core/kdb/mysql` or `core/kdb/postgres`) in `cmd/api/main.go` and `cmd/svc/main.go`.
+   copy the comment above `wireApp` in `cmd/svc/di.go`. With no database left, also delete the blank imports of the
+   database drivers (`core/kdb/mysql` and `core/kdb/postgres`) in `cmd/api/main.go` and `cmd/svc/main.go`.
    Wire everything back per `docs/guides/assembly.md` when you add your first resource.
 
 3. **Delete the leftovers the compiler cannot see.** The chain of error code, sentinel error, translation function,
@@ -215,7 +221,7 @@ order:
    example used. Then delete the "Example code" section outside the segments of `AGENTS.md` (convention documents do not
    reference example code, and once the examples are gone that is the only place pointing at them). In this README,
    rewrite the introduction, "Project structure" and "Run it" for your service; "Delete the examples" can go, while
-   "Fork into your own repo" stays: `make rename` points at it. Finally run `make check`.
+   "Fork into your own repo" stays: `make rename` points at it. Finally run `make check test`.
 
 Both greps exclude `*.pb.go`: the marker comments are carried into generated artifacts, and the hits there vanish
 on regeneration; do not edit generated artifacts by hand. The raw route examples all sit under the `/examples/`

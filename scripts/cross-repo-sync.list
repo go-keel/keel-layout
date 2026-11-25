@@ -52,6 +52,7 @@
 #keel-layout docs/guides/raw-http.md
 #keel-layout docs/guides/task.md
 #keel-layout docs/guides/testing.md
+#keel-layout internal/testdb/testdb.go
 #keel-layout deploy/nginx/conf.d/client-ip.conf
 #keel-layout deploy/nginx/snippets/client-ip-headers.conf
 #keel-layout deploy/nginx/site.conf.example

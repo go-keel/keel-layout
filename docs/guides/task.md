@@ -37,7 +37,7 @@ Adding an asynchronous task:
 3. `internal/server/`: bind it in `NewTaskServer` with `biz.Task<Name>.Handle(r, handler.HandleXxx)`.
 4. The enqueuing UseCase takes a `kasynq.Enqueuer` and calls `biz.Task<Name>.Enqueue(ctx, uc.tasks, payload, ...)`.
 5. `di.go`: the enqueuing entry point builds `kasynq.NewTaskClient(redis)`; the worker's entry point builds
-   `kasynq.NewWorkerServer(config, redis, workerSetup)`. Done when the process starts and `make check` passes.
+   `kasynq.NewWorkerServer(config, redis, workerSetup)`. Done when the process starts and `make check test` passes.
 
 Adding a cron task:
 

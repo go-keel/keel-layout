@@ -39,7 +39,7 @@ Range through 2c.
    dependencies in `cmd/<app>/di.go`.
 4. Pick a path no contract endpoint uses: on a shared path the contract endpoint wins
    ([Raw routes](keel:docs/http.md#raw-routes)). If this repository's AGENTS.md reserves prefixes (the root for
-   a front end, say), follow it. Done when the route answers and `make check` passes.
+   a front end, say), follow it. Done when the route answers and `make check test` passes.
 
 ```go
 func NewStreamRegister(streamSvc *service.StreamService, webhook *service.WebhookHandler) api.StreamRegister {

@@ -140,6 +140,28 @@ A filter mounted with `sc.Filter` that runs on every request of a port before ro
 (kind 2e in the raw-http guide).
 _Avoid_: wrapping the server's whole `Handler`
 
+## Tests
+
+Three layers, one command each (`docs/guides/testing.md`). A third-party server (database, Redis, NATS) is always a
+real one, never an emulator.
+
+**Unit test**:
+A test that connects to no server. A real HTTP server started by `httptest`, and hand-written fakes standing in for
+this repository's own interfaces, are allowed. Run by `make test`.
+_Avoid_: calling a test that uses miniredis, an embedded NATS server or SQLite a unit test (those emulators are not
+used at all)
+
+**Narrow integration test**:
+A test in which one package connects to a real server and tests its boundary with that server; build tag
+`integration`, run by `make integration`.
+_Avoid_: component test, emulator test; "integration test" for a test that runs the whole service
+
+**End-to-end test**:
+A test that runs the service as processes and tests whole features from their external interfaces; under `e2e/`,
+build tag `e2e`, run by `make e2e`.
+_Avoid_: system test, acceptance test, smoke test; calling a test that wires the service inside the test process an
+end-to-end test
+
 <!-- shared segment end keel-layout -->
 
 ## This repo: keel-layout

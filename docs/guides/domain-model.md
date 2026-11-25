@@ -22,7 +22,7 @@ The code below uses a fictional `Article` domain that this repository may not ha
    incremental script once the database is in production (**no AutoMigrate**; in the same commit as the model
    change; see "Schema" below).
 6. Wire the new constructors in every `cmd/<app>/di.go` that uses them, in the order data → biz → service.
-7. Done when `make check` passes (the `var _` assertion catches an interface mismatch here).
+7. Done when `make check test` passes (the `var _` assertion catches an interface mismatch here).
 
 When one `biz/{domain}.go` passes about 400 lines, split by verb: `biz/{domain}.go` (entities, interfaces, query use
 cases), `biz/{domain}_ingest.go` (a complex write use case), and so on.

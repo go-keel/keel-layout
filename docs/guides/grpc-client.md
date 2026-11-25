@@ -24,7 +24,7 @@ What `keel.NewServiceClient` does, its config, the default client chain and how 
    Kratos errors **pass through unchanged**.
 6. **Wire `di.go`**: `keel.NewServiceClientFactory` → each client constructor → the port implementation → the biz use
    case, with every cleanup appended to `cleanups`.
-7. Done when `make check` passes.
+7. Done when `make check test` passes.
 
 ## Code patterns
 

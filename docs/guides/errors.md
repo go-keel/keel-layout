@@ -46,7 +46,7 @@ fallback   unmatched → context errors become 499/504; downstream Kratos errors
    the tools or write them by hand, and the file names, follow the i18n targets in this repository's `Makefile`, if it
    has them, and the files already in `internal/i18n/`.
 
-Done when `make check` passes and a test or request returns the new reason with the expected code.
+Done when `make check test` passes and a test or request returns the new reason with the expected code.
 
 ## HTTP status codes
 

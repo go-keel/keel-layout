@@ -27,7 +27,7 @@ what fails startup are in `keel:docs/auth.md`. This guide covers where things go
 7. Calls to other gRPC services carry a token through `mw.WithClientAuth(chain, tokenFn)` on the client chain. Raw
    routes choose `sc.RequireLogin()` or `sc.Anonymous()` (`docs/guides/raw-http.md`).
 
-Done when `make check` passes and a request without a token to a protected endpoint gets 401.
+Done when `make check test` passes and a request without a token to a protected endpoint gets 401.
 
 ## Code patterns
 

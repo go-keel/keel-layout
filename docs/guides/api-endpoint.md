@@ -34,7 +34,7 @@ The code below uses a fictional `Article` resource that this repository may not 
 7. **Wire `di.go`**: in every `cmd/<app>/di.go` that serves the endpoint, construct in the order data → biz →
    service → server and insert the new constructors at their place.
 8. **Error mapping**: a new domain error needs its reason, its sentinel and its mapping (`docs/guides/errors.md`).
-9. Done when `make check` passes.
+9. Done when `make check test` passes.
 
 ## Code patterns
 

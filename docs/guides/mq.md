@@ -51,7 +51,7 @@ Consuming an event:
 3. In the `cmd/<app>/di.go` of the entry point that hosts consumers: pass the setup once when creating the consumer
    server (`knats.NewConsumerServer(natsClient, server.NewConsumerServer(handler))`). If no entry point hosts
    consumers yet, add one ("Adding a cmd" in `docs/guides/assembly.md`) or use an existing one.
-4. Check that `configs/config.yaml` sets `nats.default.url`. Done when the process starts and `make check` passes.
+4. Check that `configs/config.yaml` sets `nats.default.url`. Done when the process starts and `make check test` passes.
 
 ## Code
 

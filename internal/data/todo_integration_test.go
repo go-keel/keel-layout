@@ -9,19 +9,22 @@ import (
 	"errors"
 	"testing"
 
+	"gorm.io/gorm"
+
 	"github.com/go-keel/keel-layout/internal/biz"
+	"github.com/go-keel/keel-layout/internal/testdb"
 	"github.com/go-keel/keel/core/kdb"
 )
 
 // Runs under make integration once per dialect, each on a fresh database built from migrations/*/<dialect>/0_schema.sql
-// (testdb_integration_test.go). A data-layer test for a new resource follows this shape.
+// (internal/testdb). A data-layer test for a new resource follows this shape.
 func TestTodoRepo(t *testing.T) {
-	forEachDB(t, testTodoRepo)
+	testdb.ForEachDB(t, nil, testTodoRepo)
 }
 
-func testTodoRepo(t *testing.T, db *kdb.DB) {
+func testTodoRepo(t *testing.T, db *gorm.DB) {
 	ctx := context.Background()
-	repo := NewTodoRepo(db)
+	repo := NewTodoRepo(&kdb.DB{DB: db})
 
 	a, err := repo.Create(ctx, &biz.Todo{Title: "a", Content: "x"})
 	if err != nil {

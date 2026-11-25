@@ -25,7 +25,7 @@ only what that entry point needs**. How many entry points and how to split them 
 4. Assemble it only in the entry points that use it: a resource an entry point does not need does not appear in its
    `di.go`.
 
-Done when `make check` passes.
+Done when `make check test` passes.
 
 ### Fixed construction order
 
@@ -63,8 +63,8 @@ Using cmd/cron as the example:
    only, no business logic. It goes in `internal/server/` unless this repository's AGENTS.md marks `internal/server/`
    as a read-only kernel; then it goes in the cmd's own directory.
 3. Reuse the shared layers: `di.go` assembles only the parts of `internal/{biz,data,service}` this cmd uses. A cmd
-   using `kdb` blank-imports `github.com/go-keel/keel/core/kdb/mysql` or `.../core/kdb/postgres` in `main.go`, matching
-   the configured `driver`.
+   using `kdb` blank-imports `github.com/go-keel/keel/core/kdb/mysql` and `.../core/kdb/postgres` in `main.go`, so the
+   configured `driver` alone picks the database; a repository on one database may delete the other import.
 4. Add a build target to the `Makefile`:
 
    ```make
@@ -78,7 +78,7 @@ Using cmd/cron as the example:
 5. If the new cmd needs its own server port, add a named instance under `server.http` / `server.grpc` in
    `configs/config.yaml`.
 
-Done when `make build` produces `bin/cron` and `make check` passes.
+Done when `make build` produces `bin/cron` and `make check test` passes.
 
 ## Code patterns
 

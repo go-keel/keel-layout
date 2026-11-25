@@ -46,7 +46,7 @@ overlays, never committed, skipped when absent. **For local work edit the `.dev.
 3. Give it a value in `configs/app.yaml`.
 4. Read it through the injected `*kconfig.Dynamic[conf.Bootstrap]` with `.Get()` at the point of use.
 
-Done when `make check` passes and the process starts with no `kconfig` error.
+Done when `make check test` passes and the process starts with no `kconfig` error.
 
 ## Code patterns
 

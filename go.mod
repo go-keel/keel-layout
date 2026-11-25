@@ -9,6 +9,7 @@ require (
 	github.com/go-keel/keel v0.1.2
 	github.com/go-keel/keel/core/kasynq v0.0.0-20261119095434-f2ef390808c0
 	github.com/go-keel/keel/core/kdb/mysql v0.0.0-20261119095434-f2ef390808c0
+	github.com/go-keel/keel/core/kdb/postgres v0.0.0-20261119095434-f2ef390808c0
 	github.com/go-keel/keel/core/knats v0.0.0-20261119095434-f2ef390808c0
 	github.com/go-kratos/kratos/v3 v3.0.0
 	github.com/go-sql-driver/mysql v1.10.2
@@ -45,8 +46,8 @@ require (
 	github.com/hibiken/asynq v0.26.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/pgx/v5 v5.10.0 // indirect
-	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/jackc/pgx/v5 v5.13.0 // indirect
+	github.com/jackc/puddle/v2 v2.2.3 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/klauspost/compress v1.20.4 // indirect
