@@ -59,7 +59,7 @@ Using cmd/cron as the example:
 
 1. Create cmd/cron/ with `main.go` (load the Bootstrap from `configs/app.yaml` → `wireApp` → `app.Run()`) and
    `di.go` (the `wireApp` skeleton).
-2. If it needs a new kind of server, first write its register function (such as `NewSchedulerServer`): registration
+2. If it needs a new kind of server, first write its register function (such as `NewSchedulerSetup`): registration
    only, no business logic. It goes in `internal/server/` unless this repository's AGENTS.md marks `internal/server/`
    as a read-only kernel; then it goes in the cmd's own directory.
 3. Reuse the shared layers: `di.go` assembles only the parts of `internal/{biz,data,service}` this cmd uses. A cmd
@@ -152,7 +152,7 @@ func wireApp(bootstrap *kconfig.Dynamic[conf.Bootstrap]) (*keel.App, func(), err
 	articleRepo := data.NewArticleRepo(db)
 	articleUseCase := biz.NewArticleUseCase(articleRepo, publisher)
 	articleService := service.NewArticleService(articleUseCase)
-	httpServerRegister := server.NewHTTPServer(articleService)
+	httpServerRegister := server.NewHTTPServerRegister(articleService)
 	sentinelGroup := service.NewErrorSentinel()
 
 	app, err := newApp(appFactory, httpServerRegister, sentinelGroup)

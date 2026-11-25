@@ -6,7 +6,7 @@ import (
 	"github.com/go-keel/keel/server/api"
 )
 
-func NewGRPCServer(todo *service.TodoService) api.GRPCServerRegister {
+func NewGRPCServerRegister(todo *service.TodoService) api.GRPCServerRegister {
 	return func(server *api.GRPCServer) {
 		v1.RegisterTodoServiceServer(server, todo)
 	}

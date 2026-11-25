@@ -52,7 +52,7 @@ func testEventToTask(t *testing.T, e *env) {
 func testDuplicateEvent(t *testing.T, e *env) {
 	id := e.create(t, uniq("dup"))
 	e.worker.WaitLog(t, "sending todo reminder", map[string]any{"todo_id": id})
-	if _, err := e.js.Publish(context.Background(), todoSubject, []byte(`{"id":`+id+`,"title":"dup"}`)); err != nil {
+	if _, err := e.js.Publish(context.Background(), todoSubject(t), []byte(`{"id":`+id+`,"title":"dup"}`)); err != nil {
 		t.Fatal(err)
 	}
 	e.worker.WaitLog(t, "reminder task already enqueued", map[string]any{"todo_id": id})
@@ -99,7 +99,7 @@ func testDeadLetters(t *testing.T, e *env) {
 		t.Fatal(err)
 	}
 	mark := e.worker.Mark()
-	if _, err := e.js.Publish(ctx, todoSubject, []byte(`{}`)); err != nil {
+	if _, err := e.js.Publish(ctx, todoSubject(t), []byte(`{}`)); err != nil {
 		t.Fatal(err)
 	}
 	if r := e.waitGaveUp(t, mark); !strings.Contains(r, "invalid todo_created event: todo_id 0") {
@@ -112,7 +112,7 @@ func testDeadLetters(t *testing.T, e *env) {
 	}
 
 	mark = e.worker.Mark()
-	if _, err := e.js.Publish(ctx, todoSubject, []byte(`not json`)); err != nil {
+	if _, err := e.js.Publish(ctx, todoSubject(t), []byte(`not json`)); err != nil {
 		t.Fatal(err)
 	}
 	e.waitGaveUp(t, mark)
@@ -172,7 +172,7 @@ func testCronRegisteredAndDailyReport(t *testing.T, e *env) {
 // leaseHolder returns the value of the cron lease, "" when nobody holds it.
 func (e *env) leaseHolder(t *testing.T) string {
 	t.Helper()
-	v, err := e.rdb.Get(context.Background(), cronLeaseKey).Result()
+	v, err := e.rdb.Get(context.Background(), cronLeaseKey(t)).Result()
 	if errors.Is(err, redis.Nil) {
 		return ""
 	}
@@ -184,7 +184,7 @@ func (e *env) leaseHolder(t *testing.T) string {
 
 // Basis: keel:docs/tasks.md, "One replica schedules".
 func testCronLeaseOneHolder(t *testing.T, e *env) {
-	l := e.worker.WaitLog(t, "cron scheduler holds the lease; this instance enqueues cron tasks", map[string]any{"key": cronLeaseKey})
+	l := e.worker.WaitLog(t, "cron scheduler holds the lease; this instance enqueues cron tasks", map[string]any{"key": cronLeaseKey(t)})
 	holder := fmt.Sprint(l["instance_id"])
 	if got := e.leaseHolder(t); got != holder {
 		t.Fatalf("lease value %q, the worker logged %q", got, holder)
@@ -222,7 +222,7 @@ func testWorkerStopReleasesLeaseAndResumes(t *testing.T, e *env) {
 // Basis: internal/biz/todo.go, CreateTodo (a failed publish does not undo the create); keel:docs/messaging.md, "A
 // consumer that dies takes the server down".
 func testPublishFailureAndLostConsumer(t *testing.T, e *env) {
-	if err := e.js.DeleteStream(context.Background(), todoStream); err != nil {
+	if err := e.js.DeleteStream(context.Background(), todoStream(t)); err != nil {
 		t.Fatal(err)
 	}
 	mark := e.api.Mark()

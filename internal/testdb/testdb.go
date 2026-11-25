@@ -60,7 +60,7 @@ func ForEachDB(t *testing.T, databases []string, fn func(t *testing.T, db *gorm.
 // migrations/<database>/<dialect>/0_schema.sql of the databases asked for, sorted by database.
 func schemaScripts(t *testing.T, databases []string) ([]string, map[string][]string) {
 	t.Helper()
-	root := repoRoot(t)
+	root := Root(t)
 	found, err := filepath.Glob(filepath.Join(root, "migrations", "*", "*", "0_schema.sql"))
 	if err != nil || len(found) == 0 {
 		t.Fatalf("no migrations/<database>/<dialect>/0_schema.sql found (%v)", err)
@@ -115,7 +115,7 @@ func Create(t *testing.T, database, dialect, name string) string {
 	if _, ok := dsnVars[dialect]; !ok {
 		t.Fatalf("testdb.Create: unknown dialect %q; use mysql or postgres", dialect)
 	}
-	script := filepath.Join(repoRoot(t), "migrations", database, dialect, "0_schema.sql")
+	script := filepath.Join(Root(t), "migrations", database, dialect, "0_schema.sql")
 	b, err := os.ReadFile(script)
 	if err != nil {
 		t.Fatalf("testdb.Create: %v", err)
@@ -130,19 +130,23 @@ func Create(t *testing.T, database, dialect, name string) string {
 	return dsn
 }
 
-// repoRoot returns the nearest directory above the test package that holds go.mod.
-func repoRoot(t *testing.T) string {
+// Root returns the repository root: the nearest directory above the working directory that holds go.mod.
+func Root(t testing.TB) string {
 	t.Helper()
-	root, err := filepath.Abs(".")
+	dir, err := filepath.Abs(".")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, err := os.Stat(filepath.Join(root, "go.mod")); err != nil; _, err = os.Stat(filepath.Join(root, "go.mod")) {
-		if root = filepath.Dir(root); root == filepath.Dir(root) {
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
 			t.Fatal("go.mod not found above the test package")
 		}
+		dir = parent
 	}
-	return root
 }
 
 // openFresh creates the database name on the server of dialect's variable, drops it when the test ends, and returns

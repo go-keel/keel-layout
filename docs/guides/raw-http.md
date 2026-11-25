@@ -80,7 +80,7 @@ The paths and the `Article` resource are examples.
 ```go
 func (s *StreamService) ArticlesSSE() http.HandlerFunc {
     sse := api.SSEHandler(func(ctx context.Context, w *api.SSEWriter) error {
-        articles, _, err := s.uc.ListArticle(ctx, biz.ListOptions{Limit: 100})
+        articles, _, err := s.uc.ListArticle(ctx, biz.ListArticleOptions{Limit: 100})
         if err != nil {
             return err
         }

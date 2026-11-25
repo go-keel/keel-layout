@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 	"unicode/utf8"
 
@@ -56,8 +57,8 @@ const (
 	TodoSortUpdateTimeDesc TodoSort = "update_time_desc"
 )
 
-// ListOptions are the list query options; the data layer translates them into the storage query language.
-type ListOptions struct {
+// ListTodoOptions are the list query options; the data layer translates them into the storage query language.
+type ListTodoOptions struct {
 	// Completed, when non-nil, filters by completion status.
 	Completed *bool
 	Sort      TodoSort
@@ -113,10 +114,13 @@ func validateTodo(todo *Todo) error {
 // Updatable field names. They match the proto FieldMask paths and are the single definition of the contract between
 // the caller (service) and the repository (data); data maps them to its own column names.
 const (
-	FieldTitle     = "title"
-	FieldContent   = "content"
-	FieldCompleted = "completed"
+	TodoFieldTitle     = "title"
+	TodoFieldContent   = "content"
+	TodoFieldCompleted = "completed"
 )
+
+// TodoUpdatableFields is the allowlist of field names UpdateTodo accepts; the service expands the "*" mask path to it.
+var TodoUpdatableFields = []string{TodoFieldTitle, TodoFieldContent, TodoFieldCompleted}
 
 // TodoRepo is the repo interface: biz declares it, data implements it (the dependency-inversion seam).
 type TodoRepo interface {
@@ -124,7 +128,7 @@ type TodoRepo interface {
 	FindByID(ctx context.Context, id int64) (*Todo, error)
 	// List returns the rows of this page and the total match count: a paged list needs total to compute the page
 	// count, without it the caller shows a single page. Count in the database, not len() over the whole table.
-	List(ctx context.Context, opts ListOptions) ([]*Todo, int64, error)
+	List(ctx context.Context, opts ListTodoOptions) ([]*Todo, int64, error)
 	// Update writes only the fields listed in fields and leaves other columns alone. A partial update must be a single
 	// UPDATE: reading, merging in memory and writing the whole row back overwrites a concurrent change to other fields.
 	Update(ctx context.Context, todo *Todo, fields []string) (*Todo, error)
@@ -172,7 +176,7 @@ func (uc *TodoUseCase) GetTodo(ctx context.Context, id int64) (*Todo, error) {
 }
 
 // ListTodo returns a paged list; opts.Limit <= 0 uses the default page size.
-func (uc *TodoUseCase) ListTodo(ctx context.Context, opts ListOptions) ([]*Todo, int64, error) {
+func (uc *TodoUseCase) ListTodo(ctx context.Context, opts ListTodoOptions) ([]*Todo, int64, error) {
 	// Negative counts as "not given" too: gorm treats a negative Limit as unlimited.
 	if opts.Limit <= 0 {
 		opts.Limit = defaultPageSize
@@ -185,7 +189,7 @@ func (uc *TodoUseCase) ExportTodo(ctx context.Context, limit int) ([]*Todo, erro
 	if limit <= 0 {
 		limit = defaultExportLimit
 	}
-	todos, _, err := uc.repo.List(ctx, ListOptions{Limit: limit})
+	todos, _, err := uc.repo.List(ctx, ListTodoOptions{Limit: limit})
 	return todos, err
 }
 
@@ -200,15 +204,15 @@ func (uc *TodoUseCase) UpdateTodo(ctx context.Context, todo *Todo, fields []stri
 	}
 	// The field-name allowlist is enforced here: data only ever receives names it knows.
 	for _, f := range fields {
+		if !slices.Contains(TodoUpdatableFields, f) {
+			return nil, ErrInvalidArgument
+		}
 		var err error
 		switch f {
-		case FieldTitle:
+		case TodoFieldTitle:
 			err = validateTitle(todo.Title)
-		case FieldContent:
+		case TodoFieldContent:
 			err = validateContent(todo.Content)
-		case FieldCompleted:
-		default:
-			err = ErrInvalidArgument
 		}
 		if err != nil {
 			return nil, err

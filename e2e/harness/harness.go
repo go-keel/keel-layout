@@ -35,6 +35,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/go-keel/keel-layout/internal/testdb"
 )
 
 // WaitTimeout is how long WaitLog and the readiness checks wait by default.
@@ -46,31 +48,12 @@ const StopTimeout = 40 * time.Second
 // Vars are the variables pointing at the test servers; a missing one fails the test.
 var Vars = []string{"TEST_MYSQL_DSN", "TEST_POSTGRES_DSN", "TEST_REDIS_ADDR", "TEST_NATS_URL"}
 
-// Root returns the repository root: the nearest directory above the working directory that holds go.mod.
-func Root(t testing.TB) string {
-	t.Helper()
-	dir, err := filepath.Abs(".")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			t.Fatal("go.mod not found above the test package")
-		}
-		dir = parent
-	}
-}
-
 // Config returns the string at key (dotted, as in config.Value) in the committed configs/<name>, the file the processes
 // Start runs read: a test asserts the repository's own values (application name, cookie name, brand) without spelling
 // them out, so it keeps passing after a fork replaces them.
 func Config(t testing.TB, name, key string) string {
 	t.Helper()
-	c := config.New(config.WithSource(file.NewSource(filepath.Join(Root(t), "configs", name))))
+	c := config.New(config.WithSource(file.NewSource(filepath.Join(testdb.Root(t), "configs", name))))
 	defer func() { _ = c.Close() }()
 	if err := c.Load(); err != nil {
 		t.Fatalf("load configs/%s: %v", name, err)
@@ -115,7 +98,7 @@ func Build(t testing.TB, names ...string) {
 		}
 		binDir = dir // removed by the OS temp cleanup; kept across tests of one run
 	}
-	root := Root(t)
+	root := testdb.Root(t)
 	for _, name := range names {
 		if built[name] {
 			continue
@@ -149,7 +132,7 @@ func Workdir(t testing.TB) string {
 	if err := os.Mkdir(filepath.Join(dir, "configs"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	root := Root(t)
+	root := testdb.Root(t)
 	for _, f := range []string{"config.yaml", "app.yaml"} {
 		b, err := os.ReadFile(filepath.Join(root, "configs", f))
 		if err != nil {
@@ -284,8 +267,7 @@ func Start(t testing.TB, name, dir string, env ...string) *Process {
 		p.code = 0
 		if err != nil {
 			p.code = -1
-			var exit *exec.ExitError
-			if errors.As(err, &exit) {
+			if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 				p.code = exit.ExitCode()
 			}
 		}

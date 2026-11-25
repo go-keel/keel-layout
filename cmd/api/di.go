@@ -59,7 +59,7 @@ func wireApp(bootstrap *kconfig.Dynamic[conf.Bootstrap]) (*keel.App, func(), err
 	todoService := service.NewTodoService(todoUseCase)
 	streamService := service.NewStreamService(todoUseCase)
 	webhookHandler := service.NewWebhookHandler(bootstrap)
-	httpServerRegister := server.NewHTTPServer(todoService)
+	httpServerRegister := server.NewHTTPServerRegister(todoService)
 	streamRegister := server.NewStreamRegister(streamService, webhookHandler)
 	sentinelGroup := service.NewErrorSentinel()
 

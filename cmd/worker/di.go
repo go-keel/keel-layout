@@ -58,19 +58,19 @@ func wireApp(_ *kconfig.Dynamic[conf.Bootstrap]) (*keel.App, func(), error) {
 	reminderUseCase := biz.NewReminderUseCase(taskClient)
 	todoCreatedConsumer := service.NewTodoCreatedConsumer(reminderUseCase)
 	// All subscriptions are registered at once when the consumer server is built.
-	consumerServer, err := knats.NewConsumerServer(natsClient, server.NewConsumerServer(todoCreatedConsumer))
+	consumerServer, err := knats.NewConsumerServer(natsClient, server.NewConsumerSetup(todoCreatedConsumer))
 	if err != nil {
 		return nil, cleanup, err
 	}
 
 	taskHandler := service.NewTaskHandler()
-	workerSetup := server.NewTaskServer(taskHandler)
+	workerSetup := server.NewWorkerSetup(taskHandler)
 	workerServer, err := kasynq.NewWorkerServer(config, redis, workerSetup)
 	if err != nil {
 		return nil, cleanup, err
 	}
 
-	schedulerSetup := server.NewSchedulerServer()
+	schedulerSetup := server.NewSchedulerSetup()
 	schedulerServer, err := kasynq.NewSchedulerServer(config, redis, schedulerSetup)
 	if err != nil {
 		return nil, cleanup, err

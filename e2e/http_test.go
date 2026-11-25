@@ -20,20 +20,20 @@ import (
 
 // Basis: keel:docs/messaging.md, "New durables start from new messages".
 func testDurableStartsFromNewEvents(t *testing.T, e *env) {
-	c, err := e.js.Consumer(context.Background(), todoStream, todoDurable)
+	c, err := e.js.Consumer(context.Background(), todoStream(t), todoDurable)
 	if err != nil {
 		t.Fatal(err)
 	}
 	cfg := c.CachedInfo().Config
-	if cfg.DeliverPolicy != jetstream.DeliverNewPolicy || cfg.AckWait != 30*time.Second || cfg.MaxDeliver != 4 || cfg.FilterSubject != todoSubject {
+	if cfg.DeliverPolicy != jetstream.DeliverNewPolicy || cfg.AckWait != 30*time.Second || cfg.MaxDeliver != 4 || cfg.FilterSubject != todoSubject(t) {
 		t.Fatalf("durable config: deliver %v, ack wait %s, max deliver %d, filter %q", cfg.DeliverPolicy, cfg.AckWait, cfg.MaxDeliver, cfg.FilterSubject)
 	}
-	s, err := e.js.Stream(context.Background(), todoStream)
+	s, err := e.js.Stream(context.Background(), todoStream(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 	si := s.CachedInfo()
-	if len(si.Config.Subjects) != 1 || si.Config.Subjects[0] != domain+".todo.>" && si.Config.Subjects[0] != todoSubject ||
+	if len(si.Config.Subjects) != 1 || si.Config.Subjects[0] != domain(t)+".todo.>" && si.Config.Subjects[0] != todoSubject(t) ||
 		si.Config.MaxAge != 7*24*time.Hour || si.Config.Replicas != 1 {
 		t.Fatalf("stream config: subjects %v, max age %s, replicas %d", si.Config.Subjects, si.Config.MaxAge, si.Config.Replicas)
 	}

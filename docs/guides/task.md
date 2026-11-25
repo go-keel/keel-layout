@@ -22,8 +22,8 @@ enqueues a "notify subscribers" task, and a cron task builds a daily report. Rep
   cron all reference this variable, so a misspelt name or a wrong payload type fails to compile. A task name never
   appears as a bare string in service or server code.
 - **Handlers** are service-layer methods `func (h *TaskHandler) HandleXxx(ctx context.Context, p Payload) error`.
-- **Registration** is in `internal/server/`: the worker setup (returns `kasynq.WorkerSetup`, called `NewTaskServer`
-  below) and the scheduler setup (returns `kasynq.SchedulerSetup`, called `NewSchedulerServer`). If this repository's
+- **Registration** is in `internal/server/`: the worker setup (returns `kasynq.WorkerSetup`, called `NewWorkerSetup`
+  below) and the scheduler setup (returns `kasynq.SchedulerSetup`, called `NewSchedulerSetup`). If this repository's
   AGENTS.md makes `internal/server/` read-only, put them where AGENTS.md says.
 - **Enqueuing** can happen in any entry point; the worker and scheduler run in the entry point that hosts them. An
   entry point that only enqueues assembles only the task client.
@@ -34,7 +34,7 @@ Adding an asynchronous task:
 
 1. `internal/biz/`: declare the task contract next to the enqueuing UseCase.
 2. `internal/service/`: write the handler, a `TaskHandler` method, in `internal/service/task_<name>.go`.
-3. `internal/server/`: bind it in `NewTaskServer` with `biz.Task<Name>.Handle(r, handler.HandleXxx)`.
+3. `internal/server/`: bind it in `NewWorkerSetup` with `biz.Task<Name>.Handle(r, handler.HandleXxx)`.
 4. The enqueuing UseCase takes a `kasynq.Enqueuer` and calls `biz.Task<Name>.Enqueue(ctx, uc.tasks, payload, ...)`.
 5. `di.go`: the enqueuing entry point builds `kasynq.NewTaskClient(redis)`; the worker's entry point builds
    `kasynq.NewWorkerServer(config, redis, workerSetup)`. Done when the process starts and `make check test` passes.
@@ -42,7 +42,7 @@ Adding an asynchronous task:
 Adding a cron task:
 
 1. Contract and handler as above: cron only enqueues the task on a schedule, and the worker must handle it.
-2. `internal/server/`: register it in `NewSchedulerServer` with `biz.Task<Name>.RegisterCron(r, cronspec, payload)`.
+2. `internal/server/`: register it in `NewSchedulerSetup` with `biz.Task<Name>.RegisterCron(r, cronspec, payload)`.
 3. The scheduler's entry point builds `kasynq.NewSchedulerServer(config, redis, schedulerSetup)`. Done when the process
    starts.
 
@@ -123,7 +123,7 @@ server: worker and scheduler registration.
 
 ```go
 // internal/server/ worker registration (example)
-func NewTaskServer(handler *service.TaskHandler) kasynq.WorkerSetup {
+func NewWorkerSetup(handler *service.TaskHandler) kasynq.WorkerSetup {
 	return func(r kasynq.HandlerRegistrar) {
 		biz.TaskNotifySubscribers.Handle(r, handler.HandleNotifySubscribers)
 		biz.TaskDailyReport.Handle(r, handler.HandleDailyReport)
@@ -132,7 +132,7 @@ func NewTaskServer(handler *service.TaskHandler) kasynq.WorkerSetup {
 
 // internal/server/ scheduler registration (example). 08:00 UTC is 16:00 in UTC+8.
 // Registration errors are returned by kasynq.NewSchedulerServer, so the return values may be dropped here.
-func NewSchedulerServer() kasynq.SchedulerSetup {
+func NewSchedulerSetup() kasynq.SchedulerSetup {
 	return func(r kasynq.ScheduleRegistrar) {
 		_, _ = biz.TaskDailyReport.RegisterCron(r, "0 8 * * *", struct{}{})
 	}
@@ -151,12 +151,12 @@ cleanups = append(cleanups, redisCleanup)
 taskClient := kasynq.NewTaskClient(redis) // no cleanup: the Redis cleanup above owns the connection
 
 taskHandler := service.NewTaskHandler()
-workerServer, err := kasynq.NewWorkerServer(config, redis, server.NewTaskServer(taskHandler))
+workerServer, err := kasynq.NewWorkerServer(config, redis, server.NewWorkerSetup(taskHandler))
 if err != nil {
 	return nil, cleanup, err
 }
 
-schedulerServer, err := kasynq.NewSchedulerServer(config, redis, server.NewSchedulerServer())
+schedulerServer, err := kasynq.NewSchedulerServer(config, redis, server.NewSchedulerSetup())
 if err != nil {
 	return nil, cleanup, err
 }

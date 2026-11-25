@@ -6,7 +6,7 @@ import (
 	"github.com/go-keel/keel/server/api"
 )
 
-func NewHTTPServer(todo *service.TodoService) api.HTTPServerRegister {
+func NewHTTPServerRegister(todo *service.TodoService) api.HTTPServerRegister {
 	return func(server *api.HTTPServer) {
 		// Path 1: proto contract endpoints (registered by codegen, unary middleware chain, protojson responses)
 		v1.RegisterTodoServiceHTTPServer(server, todo)

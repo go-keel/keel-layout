@@ -216,7 +216,8 @@ imports that are now unused; delete them too. Three steps, in this order:
    grep -rn "Example: delete after forking" api internal configs cmd scripts migrations e2e --exclude='*.pb.go'
    ```
 
-   Once there are no hits, regenerate with `make proto && make config`. The i18n message files carry no markers (goi18n
+   Once there are no hits, run `gofmt -w internal cmd e2e` (the deletions leave blank lines and emptied parameter
+   lists behind), then regenerate with `make proto && make config`. The i18n message files carry no markers (goi18n
    rewrites files and drops comments); after deleting the translation function run
    `make i18n-extract && make i18n-merge`, and the example entries in each language's `active.*.toml` disappear with the
    code. An empty `custom:` in `configs/app.yaml` and an empty `message Custom` in `internal/conf/app.proto` are

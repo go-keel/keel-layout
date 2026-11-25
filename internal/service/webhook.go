@@ -97,8 +97,7 @@ func (h *WebhookHandler) readVerified(w http.ResponseWriter, r *http.Request) ([
 	r.Body = http.MaxBytesReader(w, r.Body, maxWebhookBody)
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		var tooLarge *http.MaxBytesError
-		if errors.As(err, &tooLarge) {
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
 			return nil, false
 		}

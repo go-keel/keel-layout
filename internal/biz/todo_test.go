@@ -40,7 +40,7 @@ func (f *fakeTodoRepo) FindByID(_ context.Context, id int64) (*Todo, error) {
 	return todo, nil
 }
 
-func (f *fakeTodoRepo) List(_ context.Context, opts ListOptions) ([]*Todo, int64, error) {
+func (f *fakeTodoRepo) List(_ context.Context, opts ListTodoOptions) ([]*Todo, int64, error) {
 	var result []*Todo
 	for _, t := range f.todos {
 		if opts.Completed != nil && t.Completed != *opts.Completed {
@@ -61,11 +61,11 @@ func (f *fakeTodoRepo) Update(_ context.Context, todo *Todo, fields []string) (*
 	updated := *cur
 	for _, field := range fields {
 		switch field {
-		case FieldTitle:
+		case TodoFieldTitle:
 			updated.Title = todo.Title
-		case FieldContent:
+		case TodoFieldContent:
 			updated.Content = todo.Content
-		case FieldCompleted:
+		case TodoFieldCompleted:
 			updated.Completed = todo.Completed
 		default:
 			return nil, ErrInvalidArgument
@@ -171,15 +171,15 @@ func TestTodoUseCase_FieldLimits(t *testing.T) {
 	if _, err := uc.CreateTodo(ctx, &Todo{Title: "ok", Content: longContent}); !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("CreateTodo content too long: got %v", err)
 	}
-	if _, err := uc.UpdateTodo(ctx, &Todo{ID: existing.ID, Title: longTitle}, []string{FieldTitle}); !errors.Is(err, ErrInvalidArgument) {
+	if _, err := uc.UpdateTodo(ctx, &Todo{ID: existing.ID, Title: longTitle}, []string{TodoFieldTitle}); !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("UpdateTodo title too long: got %v", err)
 	}
-	if _, err := uc.UpdateTodo(ctx, &Todo{ID: existing.ID, Title: "ok", Content: longContent}, []string{FieldTitle, FieldContent}); !errors.Is(err, ErrInvalidArgument) {
+	if _, err := uc.UpdateTodo(ctx, &Todo{ID: existing.ID, Title: "ok", Content: longContent}, []string{TodoFieldTitle, TodoFieldContent}); !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("UpdateTodo content too long: got %v", err)
 	}
 
 	// Exactly at the limit must pass; do not write the bound as >=
-	if _, err := uc.UpdateTodo(ctx, &Todo{ID: existing.ID, Title: strings.Repeat("x", maxTitleLen)}, []string{FieldTitle}); err != nil {
+	if _, err := uc.UpdateTodo(ctx, &Todo{ID: existing.ID, Title: strings.Repeat("x", maxTitleLen)}, []string{TodoFieldTitle}); err != nil {
 		t.Fatalf("UpdateTodo exactly at the limit should pass: %v", err)
 	}
 }

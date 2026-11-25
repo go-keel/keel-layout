@@ -57,8 +57,7 @@ func loadMessageFiles(b *i18n.Bundle, fsys fs.FS) []*i18n.MessageFile {
 func MustLocalizeMessage(localizer *i18n.Localizer, msg *i18n.Message) string {
 	localized, err := localizer.LocalizeMessage(msg)
 	if err != nil {
-		var notFound *i18n.MessageNotFoundErr
-		if !errors.As(err, &notFound) {
+		if _, ok := errors.AsType[*i18n.MessageNotFoundErr](err); !ok {
 			panic(err)
 		}
 	}

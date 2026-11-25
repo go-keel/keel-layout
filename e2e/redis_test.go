@@ -18,6 +18,8 @@ import (
 	"github.com/go-keel/keel/core/kredis/lock"
 	"github.com/go-keel/keel/core/kredis/ratelimit"
 	"github.com/go-keel/keel/core/ksnowflake"
+
+	"github.com/go-keel/keel-layout/e2e/harness"
 )
 
 // The template exposes no endpoint over Keel's lock, rate limiter or snowflake IDs, so these tests call the packages
@@ -105,8 +107,9 @@ func testRedisRatelimit(t *testing.T, e *env) {
 
 // Basis: keel:docs/utilities.md, "Snowflake IDs"; keel:docs/errors.md, ksnowflake.allocator-mismatch.
 func testSnowflake(t *testing.T, e *env) {
+	appDomain, appName := domain(t), harness.Config(t, "config.yaml", "app.name")
 	cfg := func(node int64) *kconfig.Config {
-		return &kconfig.Config{Config: &conf.Config{App: &conf.App{Domain: domain, Name: "keel-layout", Id: "e2e", NodeId: node}}}
+		return &kconfig.Config{Config: &conf.Config{App: &conf.App{Domain: appDomain, Name: appName, Id: "e2e", NodeId: node}}}
 	}
 	_, _, err := ksnowflake.NewAuto(cfg(7), e.rdb)
 	wantRule(t, err, "ksnowflake.allocator-mismatch")

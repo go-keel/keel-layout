@@ -28,7 +28,7 @@ type fakeTodoRepo struct {
 	nextID int64
 	// lastList records the arguments of the last List: checking the default size and the filter and sort conversion
 	// needs what was passed down; the response row count only proves "no more than the store holds".
-	lastList biz.ListOptions
+	lastList biz.ListTodoOptions
 }
 
 var _ biz.TodoRepo = (*fakeTodoRepo)(nil)
@@ -54,7 +54,7 @@ func (f *fakeTodoRepo) FindByID(_ context.Context, id int64) (*biz.Todo, error) 
 	return &clone, nil
 }
 
-func (f *fakeTodoRepo) List(_ context.Context, opts biz.ListOptions) ([]*biz.Todo, int64, error) {
+func (f *fakeTodoRepo) List(_ context.Context, opts biz.ListTodoOptions) ([]*biz.Todo, int64, error) {
 	f.lastList = opts
 	var all []*biz.Todo
 	for i := int64(1); i < f.nextID; i++ {
@@ -85,11 +85,11 @@ func (f *fakeTodoRepo) Update(_ context.Context, todo *biz.Todo, fields []string
 	updated := *cur
 	for _, field := range fields {
 		switch field {
-		case biz.FieldTitle:
+		case biz.TodoFieldTitle:
 			updated.Title = todo.Title
-		case biz.FieldContent:
+		case biz.TodoFieldContent:
 			updated.Content = todo.Content
-		case biz.FieldCompleted:
+		case biz.TodoFieldCompleted:
 			updated.Completed = todo.Completed
 		default:
 			return nil, biz.ErrInvalidArgument

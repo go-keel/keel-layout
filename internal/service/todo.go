@@ -63,7 +63,7 @@ func (s *TodoService) ListTodo(ctx context.Context, req *v1.ListTodoRequest) (*v
 
 	// offset/limit pass through unchanged: biz fills the default for limit 0, and the transport rejects values above
 	// the proto lte; this layer neither converts nor clamps.
-	todos, total, err := s.uc.ListTodo(ctx, biz.ListOptions{
+	todos, total, err := s.uc.ListTodo(ctx, biz.ListTodoOptions{
 		Completed: completed,
 		Sort:      sort,
 		Offset:    int(req.GetOffset()),
@@ -85,19 +85,15 @@ func (s *TodoService) ListTodo(ctx context.Context, req *v1.ListTodoRequest) (*v
 
 func (s *TodoService) UpdateTodo(ctx context.Context, req *v1.UpdateTodoRequest) (*v1.Todo, error) {
 	target := req.GetTodo()
-	if target.GetId() <= 0 || len(req.GetUpdateMask().GetPaths()) == 0 {
-		return nil, biz.ErrInvalidArgument
-	}
-
 	// FieldMask → field set, passed all the way to data, which issues a single UPDATE.
 	//
 	// **No read-modify-write**: with Get, an in-memory merge and a whole-row write, when two concurrent PATCHes change
 	// title and completed the later overwrites the earlier, while the update_mask contract is "fields not listed stay
-	// unchanged". The biz allowlist checks that field names are valid.
+	// unchanged". biz checks the ID, that fields are given, and that each name is on its allowlist.
 	fields := make([]string, 0, len(req.GetUpdateMask().GetPaths()))
 	for _, path := range req.GetUpdateMask().GetPaths() {
 		if path == "*" {
-			fields = append(fields, biz.FieldTitle, biz.FieldContent, biz.FieldCompleted)
+			fields = append(fields, biz.TodoUpdatableFields...)
 			continue
 		}
 		fields = append(fields, path)
@@ -133,7 +129,7 @@ func (s *TodoService) WatchTodo(req *v1.WatchTodoRequest, stream v1.TodoService_
 	if err := protovalidate.Validate(req); err != nil {
 		return biz.ErrInvalidArgument
 	}
-	todos, _, err := s.uc.ListTodo(stream.Context(), biz.ListOptions{Limit: int(req.GetLimit())})
+	todos, _, err := s.uc.ListTodo(stream.Context(), biz.ListTodoOptions{Limit: int(req.GetLimit())})
 	if err != nil {
 		return err
 	}

@@ -57,8 +57,8 @@ A dependency in the wrong direction means the design changes; do not add the imp
 
 - **service**: proto ↔ DO conversion, boundary validation, applying FieldMasks, returning biz errors; embeds
   `Unsafe<Resource>ServiceServer` (a missing method fails to compile). List requests pass `offset`/`limit` through untouched.
-- **biz**: DOs, use cases, repo interfaces, typed errors, `ListOptions` that do not leak storage primitives; fills the
-  default page size when `limit` is 0 (the maximum lives only in the proto `lte`).
+- **biz**: DOs, use cases, repo interfaces, typed errors, `List<Resource>Options` that do not leak storage
+  primitives; fills the default page size when `limit` is 0 (the maximum lives only in the proto `lte`).
 - **data**: implements `biz.<Resource>Repo`; the constructor returns the interface. POs are unexported; write
   `TableName()` when the stored shape differs from the DO. Driver errors map to biz's typed errors, so callers never
   branch on the driver.

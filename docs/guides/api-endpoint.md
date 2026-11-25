@@ -149,7 +149,7 @@ message ArticleListItem {
   // internal/biz/<resource>.go
   const defaultArticlePageSize = 20
 
-  func (uc *ArticleUseCase) ListArticle(ctx context.Context, opts ListOptions) ([]*Article, int64, error) {
+  func (uc *ArticleUseCase) ListArticle(ctx context.Context, opts ListArticleOptions) ([]*Article, int64, error) {
       if opts.Limit <= 0 { // negative counts as "not given" too: gorm treats a negative Limit as no limit
           opts.Limit = defaultArticlePageSize
       }
@@ -211,7 +211,7 @@ DO, repo interface and repo implementation: `docs/guides/domain-model.md`.
 
 ```go
 // internal/server/http.go (or where this repository's AGENTS.md puts registration): add the service and register it
-func NewHTTPServer(article *service.ArticleService) api.HTTPServerRegister {
+func NewHTTPServerRegister(article *service.ArticleService) api.HTTPServerRegister {
     return func(server *api.HTTPServer) {
         v1.RegisterArticleServiceHTTPServer(server, article)
     }
@@ -223,7 +223,7 @@ func NewHTTPServer(article *service.ArticleService) api.HTTPServerRegister {
 articleRepo := data.NewArticleRepo(db)
 articleUseCase := biz.NewArticleUseCase(articleRepo)
 articleService := service.NewArticleService(articleUseCase)
-httpServerRegister := server.NewHTTPServer(articleService)
+httpServerRegister := server.NewHTTPServerRegister(articleService)
 ```
 
 ### 6. Error mapping

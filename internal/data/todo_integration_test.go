@@ -40,11 +40,11 @@ func testTodoRepo(t *testing.T, db *gorm.DB) {
 	}
 
 	done := true
-	rows, total, err := repo.List(ctx, biz.ListOptions{Completed: &done, Limit: 10})
+	rows, total, err := repo.List(ctx, biz.ListTodoOptions{Completed: &done, Limit: 10})
 	if err != nil || total != 1 || len(rows) != 1 || rows[0].Title != "b" {
 		t.Fatalf("List completed = %v rows, total %d, err %v; want only b", len(rows), total, err)
 	}
-	rows, total, err = repo.List(ctx, biz.ListOptions{Limit: 1})
+	rows, total, err = repo.List(ctx, biz.ListTodoOptions{Limit: 1})
 	if err != nil || total != 2 || len(rows) != 1 {
 		t.Fatalf("List page = %d rows, total %d, err %v; want 1 row of 2", len(rows), total, err)
 	}

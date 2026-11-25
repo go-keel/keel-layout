@@ -60,7 +60,7 @@ func wireApp(_ *kconfig.Dynamic[conf.Bootstrap]) (*keel.App, func(), error) {
 	todoRepo := data.NewTodoRepo(db)
 	todoUseCase := biz.NewTodoUseCase(todoRepo, publisher)
 	todoService := service.NewTodoService(todoUseCase)
-	grpcServerRegister := server.NewGRPCServer(todoService)
+	grpcServerRegister := server.NewGRPCServerRegister(todoService)
 	sentinelGroup := service.NewErrorSentinel()
 
 	app, err := newApp(appFactory, grpcServerRegister, sentinelGroup)

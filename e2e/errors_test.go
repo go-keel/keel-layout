@@ -5,7 +5,9 @@
 package e2e
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -17,8 +19,11 @@ import (
 // internal/service/errors.go.
 func testErrorBodyAndLocale(t *testing.T, e *env) {
 	r := e.call(t, http.MethodGet, "/v1/todos/999999999", "").want(t, 404)
-	if got := strings.TrimSpace(string(r.body)); got != `{"code":404,"reason":"TODO_NOT_FOUND","message":"Todo not found.","metadata":{}}` {
-		t.Fatalf("error body %s", got)
+	// Compact first: protojson adds random spaces that change with the binary, so a byte-for-byte check breaks on
+	// unrelated edits. encoding/json because pkg/json has no Compact.
+	var got bytes.Buffer
+	if err := json.Compact(&got, r.body); err != nil || got.String() != `{"code":404,"reason":"TODO_NOT_FOUND","message":"Todo not found.","metadata":{}}` {
+		t.Fatalf("error body %s (%v)", r.body, err)
 	}
 	for lang, want := range map[string]string{"zh-CN": "待办事项未找到。", "ja": "Todo not found.", "xx": "Todo not found."} {
 		if msg := e.call(t, http.MethodGet, "/v1/todos/999999999", "", "Accept-Language", lang).wantError(t, 404, "TODO_NOT_FOUND"); msg != want {

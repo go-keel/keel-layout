@@ -1,5 +1,3 @@
-VERSION?=$(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-
 # buf plugins are pinned in buf.gen.yaml as go run ...@version; nothing to install globally.
 # buf itself is pinned too: @latest would generate different output on different machines and days, and the
 # generated files are committed, so that drift shows up as "make proto gives me a huge diff".
@@ -45,7 +43,6 @@ check-generated:
 .PHONY: generate
 generate:
 	go mod tidy
-	go generate ./...
 
 # The binaries go straight to production; every entry point shares these build flags:
 #   CGO_ENABLED=0  fully static, no dependency on the target's C library; runs in minimal images (scratch /
@@ -55,7 +52,7 @@ generate:
 #   -s -w          strips the symbol table and DWARF debug info, 20-30% smaller. The cost is that debuggers such
 #                  as dlv cannot attach to production processes; panic stack traces are unaffected (they use
 #                  pclntab, not the symbol table).
-GO_BUILD = CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.Version=$(VERSION)"
+GO_BUILD = CGO_ENABLED=0 go build -trimpath -ldflags "-s -w"
 
 .PHONY: build-api
 build-api:

@@ -4,10 +4,10 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-keel/keel-layout/internal/biz"
+	"github.com/go-keel/keel/pkg/json"
 	"github.com/go-keel/keel/server/api"
 )
 
@@ -27,7 +27,7 @@ func NewStreamService(uc *biz.TodoUseCase) *StreamService {
 // In real use, subscribe to an event channel and keep pushing until ctx.Done().
 func (s *StreamService) TodosSSE() http.HandlerFunc {
 	sse := api.SSEHandler(func(ctx context.Context, w *api.SSEWriter) error {
-		todos, _, err := s.uc.ListTodo(ctx, biz.ListOptions{Limit: 100})
+		todos, _, err := s.uc.ListTodo(ctx, biz.ListTodoOptions{Limit: 100})
 		if err != nil {
 			return err
 		}
@@ -38,7 +38,7 @@ func (s *StreamService) TodosSSE() http.HandlerFunc {
 			}
 			if err := w.WriteEvent(api.SSEEvent{
 				Event: "todo",
-				Data:  string(data),
+				Data:  data,
 			}); err != nil {
 				return err
 			}

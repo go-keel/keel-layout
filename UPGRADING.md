@@ -3,6 +3,46 @@
 This file holds entries only, one per change that actually happened; how to write entries and how to follow
 upstream: `docs/upgrading-protocol.md`.
 
+## 2026-11-25 · 4
+
+**What changed.** The register functions in `internal/server/` are named after the Keel type they return:
+`NewHTTPServer` → `NewHTTPServerRegister`, `NewGRPCServer` → `NewGRPCServerRegister`, `NewConsumerServer` →
+`NewConsumerSetup`, `NewTaskServer` → `NewWorkerSetup`, `NewSchedulerServer` → `NewSchedulerSetup`
+(`NewStreamRegister` is unchanged); the three `cmd/*/di.go` call the new names. The example's biz names carry the
+resource: `ListOptions` → `ListTodoOptions`, `FieldTitle` / `FieldContent` / `FieldCompleted` → `TodoFieldTitle` /
+`TodoFieldContent` / `TodoFieldCompleted`, `UpdatableFields` → `TodoUpdatableFields`. The shared guides use the new
+names and teach `List<Resource>Options`, as `docs/practices/structure.md` already did.
+
+**Why.** The old register names matched Keel's server constructors (`api.NewHTTPServer`, `knats.NewConsumerServer`,
+`kasynq.NewSchedulerServer`) while returning something else; unprefixed biz names collide as soon as a second
+resource is added.
+
+**How to apply.**
+
+1. Take the shared guides with `make sync-upstream`.
+2. In `internal/server/` and the `di.go` files that call them, rename the register functions as above (skip any you
+   renamed or removed yourself).
+3. Optional: give your own unprefixed list options and field-name constants in `internal/biz/` the resource prefix
+   (`List<Resource>Options`, `<Resource>Field<Name>`, `<Resource>UpdatableFields`).
+
+## 2026-11-25 · 3
+
+**What changed.** The `Makefile` no longer sets `VERSION` or passes `-X main.Version=...` to the linker (no `main.go`
+declares that variable; the version a service reports is `app.version` in `configs/app.yaml`), and `make generate`
+runs only `go mod tidy` (the repository has no `//go:generate` directives). `internal/testdb` exports
+`Root(t testing.TB)`, the repository root; `e2e/harness/harness.go` uses it instead of its own `harness.Root`, which
+is gone, and so imports `internal/testdb` under this repository's module path: its line in
+`scripts/cross-repo-sync.list` becomes a `norm` entry.
+
+**Why.** The linker flag and `go generate` did nothing; the root lookup was written twice in two shared files.
+
+**How to apply.**
+
+1. In your `Makefile`, delete the `VERSION?=` line, ` -X main.Version=$(VERSION)` from `GO_BUILD` and
+   `go generate ./...` from `generate`, unless you added a `Version` variable or `//go:generate` directives yourself.
+2. Change `keel-layout e2e/harness/harness.go` in `scripts/cross-repo-sync.list` to end in ` norm`, then take both
+   shared files with `make sync-upstream`; replace any `harness.Root(t)` of your own with `testdb.Root(t)`.
+
 ## 2026-11-25 · 2
 
 **What changed.** End-to-end tests arrive: `make e2e` builds `cmd/*`, runs the binaries as processes against the four

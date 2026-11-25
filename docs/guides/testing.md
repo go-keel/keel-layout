@@ -148,7 +148,7 @@ func (f *fakeEnqueuer) Enqueue(_ context.Context, typeName string, _ []byte, _ .
 
 **Have the fake store the arguments it receives.** Whether what an upper layer computed (query conditions, ranges,
 the fields to write) reaches the next layer unchanged can only be asserted that way: a repo fake's `List` records the
-`ListOptions` it got, and the test asserts the UseCase did not rewrite or drop it.
+`List<Resource>Options` it got, and the test asserts the UseCase did not rewrite or drop it.
 
 ### biz tests: table-driven, asserting domain errors
 

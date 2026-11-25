@@ -46,10 +46,10 @@ Consuming an event:
    `func(ctx, payload T, d knats.DeliveryInfo) knats.HandlerResult`, `T` being the contract's payload type, in
    `internal/service/consumer_<name>.go`.
 2. `internal/server/`: in the consumer registration function (it returns `knats.ConsumerSetup`; called
-   `NewConsumerServer` below), call `biz.Event<Name>.Handle(r, handler.Handler, knats.EventOptions{...})` once per
+   `NewConsumerSetup` below), call `biz.Event<Name>.Handle(r, handler.Handler, knats.EventOptions{...})` once per
    subscription. If this repository's AGENTS.md makes `internal/server/` read-only, put it where AGENTS.md says.
 3. In the `cmd/<app>/di.go` of the entry point that hosts consumers: pass the setup once when creating the consumer
-   server (`knats.NewConsumerServer(natsClient, server.NewConsumerServer(handler))`). If no entry point hosts
+   server (`knats.NewConsumerServer(natsClient, server.NewConsumerSetup(handler))`). If no entry point hosts
    consumers yet, add one ("Adding a cmd" in `docs/guides/assembly.md`) or use an existing one.
 4. Check that `configs/config.yaml` sets `nats.default.url`. Done when the process starts and `make check test` passes.
 
@@ -153,7 +153,7 @@ import (
 	"<module>/internal/service"
 )
 
-func NewConsumerServer(handler *service.ArticlePublishedConsumer) knats.ConsumerSetup {
+func NewConsumerSetup(handler *service.ArticlePublishedConsumer) knats.ConsumerSetup {
 	return func(r knats.ConsumerRegistrar) {
 		biz.EventArticlePublished.Handle(r, handler.Handler, knats.EventOptions{
 			Durable: "article_published",
@@ -176,7 +176,7 @@ cleanups = append(cleanups, natsCleanup)
 // biz → service → server registration (taskClient: see docs/guides/task.md)
 notifyUseCase := biz.NewNotifyUseCase(taskClient)
 articlePublishedConsumer := service.NewArticlePublishedConsumer(notifyUseCase)
-consumerServer, err := knats.NewConsumerServer(natsClient, server.NewConsumerServer(articlePublishedConsumer))
+consumerServer, err := knats.NewConsumerServer(natsClient, server.NewConsumerSetup(articlePublishedConsumer))
 if err != nil {
 	return nil, cleanup, err
 }

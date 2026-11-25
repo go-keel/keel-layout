@@ -59,7 +59,7 @@ Biz declares the repo interface and data implements it; this inverted dependency
 type ArticleRepo interface {
     Create(ctx context.Context, article *Article) (*Article, error)
     FindByID(ctx context.Context, id int64) (*Article, error)
-    List(ctx context.Context, opts ListOptions) ([]*Article, int64, error)
+    List(ctx context.Context, opts ListArticleOptions) ([]*Article, int64, error)
     // Update writes only the listed fields: a partial update must be one UPDATE; reading the row, merging in
     // memory and writing the whole row back overwrites the other half of a concurrent change.
     Update(ctx context.Context, article *Article, fields []string) (*Article, error)
@@ -91,8 +91,8 @@ in its file.
 
 Define a Request struct when a method has more than 3 parameters or they come from several sources; define a Result
 struct when the return has several independent fields; otherwise pass parameters and return the entity or error
-directly. `ListOptions` for list queries (filters, sort, `Offset` / `Limit` in one struct, translated into a storage
-query by data) is the common case of the first. Another example:
+directly. `ListArticleOptions` (`List<Resource>Options`) for list queries (filters, sort, `Offset` / `Limit` in one
+struct, translated into a storage query by data) is the common case of the first. Another example:
 
 ```go
 // More than 3 parameters, or parameters from several sources: a Request struct,

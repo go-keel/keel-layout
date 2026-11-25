@@ -39,15 +39,16 @@ var rounds = []round{
 }
 
 // Example: delete after forking (through "Example end")
-// Names from configs/config.yaml (app.domain, app.name) and the example code. A case of your own reads such values
-// with harness.Config instead of spelling them out.
-const (
-	domain       = "keel"
-	cronLeaseKey = domain + ":keel-layout:cron_scheduler"
-	todoStream   = domain + "_todo"
-	todoSubject  = domain + ".todo.created"
-	todoDurable  = "todo_created"
-)
+// The example consumer's durable name, and names built from configs/config.yaml (app.domain, app.name) the way the
+// framework builds them, read with harness.Config as a case of your own does instead of spelling them out.
+const todoDurable = "todo_created"
+
+func domain(t testing.TB) string      { return harness.Config(t, "config.yaml", "app.domain") }
+func todoStream(t testing.TB) string  { return domain(t) + "_todo" }
+func todoSubject(t testing.TB) string { return domain(t) + ".todo.created" }
+func cronLeaseKey(t testing.TB) string {
+	return domain(t) + ":" + harness.Config(t, "config.yaml", "app.name") + ":cron_scheduler"
+}
 
 // Example end
 
@@ -251,10 +252,10 @@ func (e *env) startWorker(owner, t testing.TB, dir string, extra ...string) *har
 	// Example: delete after forking (through "Example end")
 	deadline := time.Now().Add(harness.WaitTimeout)
 	for {
-		if _, err := e.js.Consumer(context.Background(), todoStream, todoDurable); err == nil {
+		if _, err := e.js.Consumer(context.Background(), todoStream(t), todoDurable); err == nil {
 			break
 		} else if time.Now().After(deadline) {
-			t.Fatalf("durable %s on %s not created within %s: %v\n%s", todoDurable, todoStream, harness.WaitTimeout, err, p.Tail(50))
+			t.Fatalf("durable %s on %s not created within %s: %v\n%s", todoDurable, todoStream(t), harness.WaitTimeout, err, p.Tail(50))
 		}
 		time.Sleep(50 * time.Millisecond)
 	}

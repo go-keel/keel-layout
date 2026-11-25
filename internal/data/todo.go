@@ -47,7 +47,7 @@ func (r *todoRepo) FindByID(ctx context.Context, id int64) (*biz.Todo, error) {
 	return m.toBiz(), nil
 }
 
-func (r *todoRepo) List(ctx context.Context, opts biz.ListOptions) ([]*biz.Todo, int64, error) {
+func (r *todoRepo) List(ctx context.Context, opts biz.ListTodoOptions) ([]*biz.Todo, int64, error) {
 	// The sort is an enum and accepts only the values biz lists; column names belong to data (update_time → updated_at).
 	var order string
 	switch opts.Sort {
@@ -60,7 +60,7 @@ func (r *todoRepo) List(ctx context.Context, opts biz.ListOptions) ([]*biz.Todo,
 
 	q := r.db.WithContext(ctx).Model(&todo{})
 
-	// ListOptions → SQL translation happens in the data layer and nowhere else
+	// ListTodoOptions → SQL translation happens in the data layer and nowhere else
 	if opts.Completed != nil {
 		q = q.Where("completed = ?", *opts.Completed)
 	}
@@ -93,9 +93,9 @@ func (r *todoRepo) List(ctx context.Context, opts biz.ListOptions) ([]*biz.Todo,
 // updatableColumns maps biz field names to storage column names. Column names belong to data (the PO shape is its
 // private business), field names belong to biz; each side has its own vocabulary, and the mapping lives here.
 var updatableColumns = map[string]string{
-	biz.FieldTitle:     "title",
-	biz.FieldContent:   "content",
-	biz.FieldCompleted: "completed",
+	biz.TodoFieldTitle:     "title",
+	biz.TodoFieldContent:   "content",
+	biz.TodoFieldCompleted: "completed",
 }
 
 func (r *todoRepo) Update(ctx context.Context, t *biz.Todo, fields []string) (*biz.Todo, error) {
