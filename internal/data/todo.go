@@ -119,9 +119,8 @@ func (r *todoRepo) Update(ctx context.Context, t *biz.Todo, fields []string) (*b
 		slog.ErrorContext(ctx, "failed to update todo", "error", res.Error, "id", t.ID)
 		return nil, errors.Join(biz.ErrUnexpectedError, res.Error)
 	}
-	if res.RowsAffected == 0 {
-		return nil, biz.ErrTodoNotFound
-	}
+	// Not found is decided by the read below, not by RowsAffected: MySQL counts changed rows, so an update that
+	// writes the values the row already has (updated_at included, within the same millisecond) affects none.
 	return r.FindByID(ctx, t.ID)
 }
 

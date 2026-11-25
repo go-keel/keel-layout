@@ -195,8 +195,8 @@ func testHTTPUpdateMask(t *testing.T, e *env) {
 	}
 	e.call(t, http.MethodPatch, "/v1/todos/"+id, `{"title":"x"}`).wantError(t, 400, "VALIDATOR")
 	e.call(t, http.MethodPatch, "/v1/todos/"+id+"?update_mask=nope", `{"title":"x"}`).wantError(t, 400, "INVALID_ARGUMENT")
-	e.call(t, http.MethodPatch, "/v1/todos/"+id+"?update_mask=title", mustJSON(map[string]any{"title": repeat("a", 201)})).wantError(t, 400, "INVALID_ARGUMENT")
-	zh := repeat("测", 200)
+	e.call(t, http.MethodPatch, "/v1/todos/"+id+"?update_mask=title", mustJSON(map[string]any{"title": strings.Repeat("a", 201)})).wantError(t, 400, "INVALID_ARGUMENT")
+	zh := strings.Repeat("测", 200)
 	e.call(t, http.MethodPatch, "/v1/todos/"+id+"?update_mask=title", mustJSON(map[string]any{"title": zh})).want(t, 200)
 	if e.count(t, "id = ? AND title = ?", id, zh) != 1 {
 		t.Fatal("the 200-character Chinese title was not stored whole")
@@ -216,10 +216,10 @@ func testHTTPUpdateUnchangedValue(t *testing.T, e *env) {
 // Basis: todo.proto, CreateTodoRequest; internal/biz/todo.go, lengths count characters; keel:docs/http.md, protojson
 // discards unknown fields.
 func testHTTPCreateValidation(t *testing.T, e *env) {
-	zh := repeat("测", 199) + "x"
+	zh := strings.Repeat("测", 199) + "x"
 	e.call(t, http.MethodPost, "/v1/todos", mustJSON(map[string]any{"title": zh})).want(t, 200)
-	e.call(t, http.MethodPost, "/v1/todos", mustJSON(map[string]any{"title": repeat("测", 201)})).wantError(t, 400, "VALIDATOR")
-	e.call(t, http.MethodPost, "/v1/todos", mustJSON(map[string]any{"title": "x", "content": repeat("c", 2001)})).wantError(t, 400, "VALIDATOR")
+	e.call(t, http.MethodPost, "/v1/todos", mustJSON(map[string]any{"title": strings.Repeat("测", 201)})).wantError(t, 400, "VALIDATOR")
+	e.call(t, http.MethodPost, "/v1/todos", mustJSON(map[string]any{"title": "x", "content": strings.Repeat("c", 2001)})).wantError(t, 400, "VALIDATOR")
 	e.call(t, http.MethodPost, "/v1/todos", `{"title":""}`).wantError(t, 400, "VALIDATOR")
 	e.call(t, http.MethodPost, "/v1/todos", mustJSON(map[string]any{"title": uniq("unknown"), "nope": 1})).want(t, 200)
 }

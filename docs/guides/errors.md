@@ -241,7 +241,7 @@ sending it; a `VALIDATOR` error means that caller has a bug (`keel:docs/middlewa
 
 ```go
 chain := mw.Default(config)
-mw.WithLocale(chain, i18n.NewBundle()) // Keel's bundle plus internal/i18n's message files
+mw.WithLocale(chain, i18n.NewBundle()) // the go-i18n bundle with internal/i18n's message files
 mw.WithSentinel(chain, sg)
 ```
 

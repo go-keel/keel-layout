@@ -31,7 +31,7 @@ func index(lines []harness.Line, msg string, fields map[string]any) int {
 	return -1
 }
 
-// Basis: README.md, the request flow (HTTP → event → task); internal/service/consumer.go and task.go.
+// Basis: README.md, "Run it" (creating a todo triggers the event, and the worker enqueues a task); internal/service/consumer.go and task.go.
 func testEventToTask(t *testing.T, e *env) {
 	mark := e.worker.Mark()
 	title := uniq("secret title")

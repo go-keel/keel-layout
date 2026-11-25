@@ -52,7 +52,7 @@ func (r response) wantError(t *testing.T, code int, reason string) string {
 	return m["message"].(string)
 }
 
-// call sends one request to base+path; headers are name, value pairs.
+// call sends one request to url; headers are name, value pairs.
 func call(t *testing.T, method, url, body string, headers ...string) response {
 	t.Helper()
 	var rd io.Reader
@@ -104,6 +104,7 @@ func mustJSON(v any) string {
 	return string(b)
 }
 
+// Example: delete after forking
 // sign is the example webhook signature: hex HMAC-SHA256 of the body.
 func sign(secret, body string) string {
 	mac := hmac.New(sha256.New, []byte(secret))
@@ -124,9 +125,6 @@ func wantGRPCError(t *testing.T, err error, code int, reason string) string {
 	}
 	return ke.Message
 }
-
-// repeat returns s repeated n times.
-func repeat(s string, n int) string { return strings.Repeat(s, n) }
 
 // lines splits a body into its non-empty lines.
 func lines(b []byte) []string {

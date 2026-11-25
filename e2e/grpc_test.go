@@ -42,6 +42,9 @@ func testGRPCCRUD(t *testing.T, e *env) {
 	if got, err := e.todo.GetTodo(ctx, &v1.GetTodoRequest{Id: id}); err != nil || got.GetTitle() != title {
 		t.Fatalf("GetTodo: %v %v", got, err)
 	}
+	for range 2 { // with the one created above: three of this case's own, none completed
+		e.create(t, uniq("grpc"))
+	}
 	list, err := e.todo.ListTodo(ctx, &v1.ListTodoRequest{Completed: 2, Limit: 3})
 	if err != nil || len(list.GetTodos()) != 3 || list.GetTotal() != e.count(t, "completed = ?", false) {
 		t.Fatalf("ListTodo completed=2 limit=3: %d rows, total %d (database %d), %v", len(list.GetTodos()), list.GetTotal(), e.count(t, "completed = ?", false), err)
@@ -105,6 +108,7 @@ func testGRPCKeelClient(t *testing.T, e *env) {
 	if body, err := c.ExportTodo(ctx, &v1.ExportTodoRequest{Limit: 3}); err != nil || body.GetContentType() != "text/csv; charset=utf-8" {
 		t.Fatalf("ExportTodo: %v %v", body.GetContentType(), err)
 	}
+	e.ensure(t, 3)
 	watch, err := c.WatchTodo(ctx, &v1.WatchTodoRequest{Limit: 3})
 	if err != nil {
 		t.Fatal(err)

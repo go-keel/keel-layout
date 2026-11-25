@@ -17,6 +17,8 @@ internal/service/         transport adapters, one file per resource
 internal/biz/             domain models, use cases, repo interfaces, errors
 internal/data/            repo implementations, storage clients, gRPC clients
 internal/i18n/            language bundles and translations
+internal/testdb/          per-test databases for integration and end-to-end tests
+e2e/                      end-to-end tests: run the built binaries and test them from outside
 migrations/<database>/    one directory per dialect (mysql/, postgres/) of SQL scripts applied by hand: 0_schema.sql,
                           1_baseline.sql, incremental scripts
 third_party/              imported .proto: keel, protovalidate, googleapis, kratos copied by make proto from go.mod;

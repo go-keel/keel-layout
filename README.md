@@ -60,7 +60,8 @@ cp configs/config.dev.example.yaml configs/config.dev.yaml
 
 # 2. Create tables: no AutoMigrate; a new database runs the complete schema by hand
 mysql -uroot -p123456 keel < migrations/business/mysql/0_schema.sql
-#    On PostgreSQL: switch driver and source as the database section of configs/config.yaml says, then
+#    On PostgreSQL (18 or later, docs/practices/database.md): switch driver and source as the database section of
+#    configs/config.yaml says, then
 #    psql -U postgres -d keel -v ON_ERROR_STOP=1 -f migrations/business/postgres/0_schema.sql
 
 # 3. Start a process

@@ -64,7 +64,7 @@ func testSSEWatch(t *testing.T, e *env) {
 	e.call(t, http.MethodGet, "/v1/todos/watch?limit=101", "").wantError(t, 400, "VALIDATOR")
 }
 
-// Basis: keel:docs/grpc.md, "Stream messages are not validated"; todo.proto, WatchTodo and StreamTodoLookup.
+// Basis: keel:docs/grpc.md, "Streams run the chain once per stream" (stream messages are not validated); todo.proto, WatchTodo and StreamTodoLookup.
 func testGRPCStreams(t *testing.T, e *env) {
 	ctx := context.Background()
 	e.ensure(t, 3)
