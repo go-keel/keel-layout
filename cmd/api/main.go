@@ -39,15 +39,14 @@ func main() {
 }
 
 func newApp(
-	factory *keel.AppFactory,
+	cfg *kconfig.Config,
 	apiRegister api.HTTPServerRegister,
 	streamRegister api.StreamRegister,
 	sg *sentinel.Group,
 ) (*keel.App, error) {
-	c := factory.Config()
-	httpCfg := c.Server.Http["default"]
+	httpCfg := cfg.Server.Http["default"]
 
-	chain := mw.Default(c.Config)
+	chain := mw.Default(cfg)
 	mw.WithLocale(chain, i18n.NewBundle())
 	mw.WithSentinel(chain, sg)
 
@@ -61,5 +60,5 @@ func newApp(
 		return nil, err
 	}
 
-	return factory.New(apiServer)
+	return keel.NewApp(cfg, apiServer)
 }

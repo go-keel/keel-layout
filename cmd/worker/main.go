@@ -32,10 +32,10 @@ func main() {
 }
 
 func newApp(
-	factory *keel.AppFactory,
+	cfg *kconfig.Config,
 	consumerServer keel.Server,
 	workerServer *kasynq.WorkerServer,
 	schedulerServer *kasynq.SchedulerServer,
 ) (*keel.App, error) {
-	return factory.New(consumerServer, workerServer, schedulerServer)
+	return keel.NewApp(cfg, consumerServer, workerServer, schedulerServer)
 }

@@ -53,6 +53,7 @@
 #keel-layout docs/guides/task.md
 #keel-layout docs/guides/testing.md
 #keel-layout internal/testdb/testdb.go
+#keel-layout internal/i18n/bundle.go
 #keel-layout e2e/harness/harness.go norm
 #keel-layout deploy/nginx/conf.d/client-ip.conf
 #keel-layout deploy/nginx/snippets/client-ip-headers.conf

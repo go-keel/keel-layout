@@ -37,15 +37,15 @@ func testRedisLock(t *testing.T, e *env) {
 	ctx := context.Background()
 	l := lock.NewLocker(e.rdb)
 	key := "e2e:lock:" + uniq("k")
-	unlock, err := l.TryAcquireLock(ctx, key, 30)
+	unlock, err := l.TryAcquireLock(ctx, key, 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := l.TryAcquireLock(ctx, key, 30); !errors.Is(err, lock.ErrLockNotAcquired) {
+	if _, err := l.TryAcquireLock(ctx, key, 30*time.Second); !errors.Is(err, lock.ErrLockNotAcquired) {
 		t.Fatalf("second acquire: %v, want ErrLockNotAcquired", err)
 	}
 	unlock()
-	unlock, err = l.TryAcquireLock(ctx, key, 30)
+	unlock, err = l.TryAcquireLock(ctx, key, 30*time.Second)
 	if err != nil {
 		t.Fatalf("acquire after release: %v", err)
 	}
@@ -58,17 +58,17 @@ func testRedisLock(t *testing.T, e *env) {
 	prev := slog.Default()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&logs, nil)))
 	defer slog.SetDefault(prev)
-	late, err := l.TryAcquireLock(ctx, key, 1)
+	late, err := l.TryAcquireLock(ctx, key, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, "the 1 s lock expired", func() bool { return e.rdb.Exists(ctx, key).Val() == 0 })
-	second, err := l.TryAcquireLock(ctx, key, 30)
+	second, err := l.TryAcquireLock(ctx, key, 30*time.Second)
 	if err != nil {
 		t.Fatalf("acquire after the ttl: %v", err)
 	}
 	late()
-	if _, err := l.TryAcquireLock(ctx, key, 30); !errors.Is(err, lock.ErrLockNotAcquired) {
+	if _, err := l.TryAcquireLock(ctx, key, 30*time.Second); !errors.Is(err, lock.ErrLockNotAcquired) {
 		t.Fatalf("the late release freed the second holder's lock: %v", err)
 	}
 	second()

@@ -3,6 +3,58 @@
 This file holds entries only, one per change that actually happened; how to write entries and how to follow
 upstream: `docs/upgrading-protocol.md`.
 
+## 2026-11-25 · 6
+
+**What changed.** The template follows Keel's one way of doing i18n (Keel's `UPGRADING.md`, "`locale.Bundle` is gone"):
+`internal/i18n.NewBundle` returns go-i18n's `*i18n.Bundle` without Keel's wrapper; `MustLocalizeMessage` is gone.
+`internal/service/errors.go` maps each error with one `OnMessage` line instead of an `OnLocaled` handler per error.
+`internal/i18n/bundle.go` becomes a shared file (`scripts/cross-repo-sync.list`). A `VALIDATOR` error now carries the
+validation library's English text naming the field, the same in every language; the errors guide and
+`docs/practices/user-text.md` say it is for developers and that callers make sure parameters are valid. The e2e locale
+case checks language matching on a domain error instead.
+
+**Why.** Keel now translates with fallback itself (`locale.Localize`, `sentinel.OnMessage`), so the per-error
+handlers and the template's own fallback helper were a second way to do it. Field-format checks are the caller's job;
+their failures are for the caller's developer.
+
+**How to apply.**
+
+1. Take the shared guides and `internal/i18n/bundle.go` with `make sync-upstream`; enable its line in
+   `scripts/cross-repo-sync.list`.
+2. Replace each `OnLocaled(err, translateXxx)` whose handler only localizes a message into `v1.ErrorXxx` with
+   `OnMessage(err, &goi18n.Message{ID: ..., Other: ...}, v1.ErrorXxx)`, moving the ID and English text from the
+   handler, and delete the handler. Other handlers become `On(err, handler)` calling `locale.Localize(ctx, msg)` in
+   place of `i18n.MustLocalizeMessage`.
+3. Run `make i18n-extract`: the extracted English must be unchanged.
+4. Tests asserting a translated `VALIDATOR` message: assert the field name instead. Clients that showed it to end
+   users: check the input in the client first.
+
+## 2026-11-25 · 5
+
+**What changed.** The template follows Keel v0.2.0 (its `UPGRADING.md`, section "v0.2.0"):
+`cmd/*/di.go` no longer builds `keel.NewAppFactory(keel.NewConfig(config))` and passes `config` to `newApp`, which
+takes `*kconfig.Config`, builds the chain from `mw.Default(cfg)` and ends with `keel.NewApp(cfg, servers...)`. The
+e2e tests build clients with `keel.NewServiceClient(cfg, ...)`, write metadata with `metadata.Set`, give lock TTLs as
+`time.Duration` and no longer expect `knats.domain-missing` for an empty `app.domain`; `internal/service/rawhttp_test.go`
+uses `metadata.Set`. The shared guides teach the new calls (`keel.NewApp`, `keel.NewServiceClient(config, ...)`,
+`metadata.Get` / `metadata.Set`, `*lock.Locker` with `time.Duration` TTLs, `worker.NewServer`) and say "where the
+entry point builds its middleware chain" instead of naming `newApp` in `cmd/<app>/main.go`. `go.mod` names
+Keel `v0.2.0`, and the optional modules (`core/kasynq`, `core/kdb/mysql`, `core/kdb/postgres`, `core/knats`) the
+pseudo-version of that tag's commit, `v0.0.0-20261125211609-9d679e606cb4`.
+
+**Why.** Keel replaced its config wrapper and factories with the loaded `*kconfig.Config`, and changed the metadata,
+lock and worker APIs.
+
+**How to apply.**
+
+1. Set the Keel versions in `go.mod` to the ones above, run `go mod tidy`, and apply Keel's own `UPGRADING.md`
+   entries between your version and that one; `go build ./...` and `go vet -tags e2e ./...` list the call sites.
+2. In each `cmd/<app>/di.go` and `main.go`: delete `appFactory := keel.NewAppFactory(...)`, pass `config` where the
+   factory went, replace `factory.Config()` / `c.Config` with the config itself and `factory.New(...)` with
+   `keel.NewApp(cfg, ...)`.
+3. Multiply every `TryAcquireLock` TTL by `time.Second` (a bare integer still compiles and means nanoseconds).
+4. Take the shared guides with `make sync-upstream`.
+
 ## 2026-11-25 · 4
 
 **What changed.** The register functions in `internal/server/` are named after the Keel type they return:

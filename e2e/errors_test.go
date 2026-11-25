@@ -31,25 +31,18 @@ func testErrorBodyAndLocale(t *testing.T, e *env) {
 		}
 	}
 
-	required := map[string]string{}
-	for _, lang := range []string{"", "zh-CN", "ja"} {
-		msg := e.call(t, http.MethodPost, "/v1/todos", `{"title":""}`, "Accept-Language", lang).wantError(t, 400, "VALIDATOR")
-		if strings.Contains(msg, "title") || strings.Contains(msg, "min_len") {
-			t.Fatalf("%q: the message names the field or rule: %q", lang, msg)
-		}
-		required[lang] = msg
-	}
-	if required[""] == required["zh-CN"] || required["zh-CN"] == required["ja"] || required[""] == required["ja"] || !containsHan(required["zh-CN"]) {
-		t.Fatalf("not one sentence per language: %q", required)
-	}
-	for header, want := range map[string]string{"fr, zh-CN;q=0.1": required["zh-CN"], "en;q=0.1, zh-CN": required[""]} {
-		if msg := e.call(t, http.MethodPost, "/v1/todos", `{"title":""}`, "Accept-Language", header).wantError(t, 400, "VALIDATOR"); msg != want {
+	// Language matching counts q weights and skips unsupported languages.
+	for header, want := range map[string]string{"fr, zh-CN;q=0.1": "待办事项未找到。", "en;q=0.1, zh-CN": "待办事项未找到。", "zh-CN;q=0.1, en": "Todo not found."} {
+		if msg := e.call(t, http.MethodGet, "/v1/todos/999999999", "", "Accept-Language", header).wantError(t, 404, "TODO_NOT_FOUND"); msg != want {
 			t.Fatalf("Accept-Language %q: %q, want %q", header, msg, want)
 		}
 	}
-	long := e.call(t, http.MethodPost, "/v1/todos", mustJSON(map[string]any{"title": repeat("测", 201)}), "Accept-Language", "zh-CN").wantError(t, 400, "VALIDATOR")
-	if long == required["zh-CN"] || !containsHan(long) {
-		t.Fatalf("a length violation reads %q, the same as a missing value", long)
+
+	// A VALIDATOR error is for developers: the validation library's text naming the field, the same in every language.
+	en := e.call(t, http.MethodPost, "/v1/todos", `{"title":""}`).wantError(t, 400, "VALIDATOR")
+	zh := e.call(t, http.MethodPost, "/v1/todos", `{"title":""}`, "Accept-Language", "zh-CN").wantError(t, 400, "VALIDATOR")
+	if !strings.Contains(en, "title") || zh != en {
+		t.Fatalf("VALIDATOR message %q (zh-CN %q), want the untranslated text naming the field", en, zh)
 	}
 	id := e.create(t, uniq("locale"))
 	if msg := e.call(t, http.MethodPatch, "/v1/todos/"+id+"?update_mask=nope", `{"title":"x"}`, "Accept-Language", "zh-CN").wantError(t, 400, "INVALID_ARGUMENT"); msg != "输入有误，请检查后再试。" {

@@ -52,7 +52,7 @@ func NewStreamRegister(streamSvc *service.StreamService, webhook *service.Webhoo
     }
 }
 
-// in newApp
+// where the entry point builds its servers
 apiServer, err := api.NewHTTPServer(httpCfg, apiRegister, chain, streamRegister)
 ```
 

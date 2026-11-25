@@ -16,13 +16,13 @@ What `keel.NewServiceClient` does, its config, the default client chain and how 
 2. **Config**: add an entry to the `client` block in `configs/config.yaml`, keyed by the service name (such as
    `user-svc`), with `endpoint` and `timeout`.
 3. **Client constructor**: in internal/data/client.go (create it), built on
-   `keel.NewServiceClient(factory, name, newFn, chain)`.
+   `keel.NewServiceClient(config, name, newFn, chain)`.
 4. **Port interface in biz**: to biz, a call to another service is an external port. Declare the interface in
    `internal/biz/` (in `biz/<domain>.go` for one domain, `biz/ports.go` when shared across domains); it takes and
    returns DOs.
 5. **Port implementation in data**: in `internal/data/`, wrap the pb client and convert pb ↔ DO; the downstream's
    Kratos errors **pass through unchanged**.
-6. **Wire `di.go`**: `keel.NewServiceClientFactory` → each client constructor → the port implementation → the biz use
+6. **Wire `di.go`**: each client constructor, given the loaded config → the port implementation → the biz use
    case, with every cleanup appended to `cleanups`.
 7. Done when `make check test` passes.
 
@@ -50,13 +50,14 @@ package data
 
 import (
     "github.com/go-keel/keel"
+    "github.com/go-keel/keel/core/kconfig"
 
     userpb "example.com/user-svc/api/user/v1"
 )
 
 // chain nil means mw.ClientDefault
-func NewUserServiceClient(factory *keel.ServiceClientFactory) (userpb.UserServiceClient, func(), error) {
-    return keel.NewServiceClient(factory, "user-svc", userpb.NewUserServiceClient, nil)
+func NewUserServiceClient(config *kconfig.Config) (userpb.UserServiceClient, func(), error) {
+    return keel.NewServiceClient(config, "user-svc", userpb.NewUserServiceClient, nil)
 }
 ```
 
@@ -105,9 +106,7 @@ func (p *userPort) GetUser(ctx context.Context, userID int64) (*biz.User, error)
 
 ```go
 // between the infrastructure and the data layer
-clientFactory := keel.NewServiceClientFactory(keel.NewConfig(config))
-
-userClient, userClientCleanup, err := data.NewUserServiceClient(clientFactory)
+userClient, userClientCleanup, err := data.NewUserServiceClient(config)
 if err != nil {
     return nil, cleanup, err
 }
@@ -152,7 +151,7 @@ the biz port in `internal/data/` (`keel:docs/http-client.md`):
 - ❌ **Wrapping downstream errors again**: see "Wrapping at a glance" in `docs/guides/errors.md`.
 - ❌ **Dropping the cleanup** (`_, _, _ := keel.NewServiceClient(...)`, or never appending it): the connection is not
   closed at shutdown.
-- ❌ **Bypassing the factory with `grpc.NewClient` or a bare Kratos client**: it loses the default chain's tracing,
+- ❌ **Bypassing `keel.NewServiceClient` with `grpc.NewClient` or a bare Kratos client**: it loses the default chain's tracing,
   metrics and circuit breaker and the shared config.
 - ❌ **Building a client per request**: build it once in `di.go` and reuse it; rebuilding on the request path is slow
   and leaks cleanups.

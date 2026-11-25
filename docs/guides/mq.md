@@ -182,8 +182,8 @@ if err != nil {
 }
 ```
 
-`consumerServer` goes to `factory.New` in that entry point's `newApp`, together with any worker and scheduler of the
-same entry point: `factory.New(consumerServer, workerServer, schedulerServer)`. When you remove the last
+`consumerServer` goes to that entry point's `keel.NewApp`, together with any worker and scheduler of the same entry
+point: `keel.NewApp(config, consumerServer, workerServer, schedulerServer)`. When you remove the last
 subscription, remove the consumer server and the connection built only for it from `di.go`, because a consumer
 server with no subscription fails to start (`ErrNoConsumers`).
 

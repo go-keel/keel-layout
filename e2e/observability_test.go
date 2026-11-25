@@ -193,7 +193,7 @@ func testAuthGRPC(t *testing.T, e *env) {
 	}
 
 	cfg := &kconfig.Config{Config: &conf.Config{Client: map[string]*conf.Client{"todo-svc": {Endpoint: addr}}}}
-	c, cleanup, err := keel.NewServiceClient(keel.NewServiceClientFactory(keel.NewConfig(cfg)), "todo-svc", v1.NewTodoServiceClient, nil)
+	c, cleanup, err := keel.NewServiceClient(cfg, "todo-svc", v1.NewTodoServiceClient, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

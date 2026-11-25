@@ -38,11 +38,10 @@ func main() {
 	}
 }
 
-func newApp(factory *keel.AppFactory, grpcRegister api.GRPCServerRegister, sg *sentinel.Group) (*keel.App, error) {
-	c := factory.Config()
-	grpcCfg := c.Server.Grpc["default"]
+func newApp(cfg *kconfig.Config, grpcRegister api.GRPCServerRegister, sg *sentinel.Group) (*keel.App, error) {
+	grpcCfg := cfg.Server.Grpc["default"]
 
-	chain := mw.Default(c.Config)
+	chain := mw.Default(cfg)
 	mw.WithLocale(chain, i18n.NewBundle())
 	mw.WithSentinel(chain, sg)
 
@@ -55,5 +54,5 @@ func newApp(factory *keel.AppFactory, grpcRegister api.GRPCServerRegister, sg *s
 		return nil, err
 	}
 
-	return factory.New(grpcServer)
+	return keel.NewApp(cfg, grpcServer)
 }

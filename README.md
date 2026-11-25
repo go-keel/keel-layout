@@ -120,8 +120,9 @@ It goes into full gRPC method names and OpenAPI type names and is the service's 
 forked, keep `lint-strict` instead and change `keel-layout` in its patterns to your repository's directory name.
 `lint-strict` checks everything and reports the paths of your own business area; `lint` checks only what upstream is
 responsible for (see `docs/adr/layout-0005-doc-link-check-distribution-boundary.md`). Also delete the
-`scripts/check-english.sh` line in the `check` target: requiring English is this template's own rule, and your
-service writes in its team's language. Do this before deleting the examples, or the final `make check` below fails.
+`scripts/check-english.sh` line in the `check` target, with the comment line above it: requiring English is this
+template's own rule, and your service writes in its team's language. Do this before deleting the examples, or the
+final `make check` below fails.
 
 **A repo that will itself be forked** sets `TEMPLATE_MODULE` and `TEMPLATE_DOMAIN` at the top of `scripts/rename.sh`
 to its own module path and package segment once its rename is done, so its own forks can run the one rename.
@@ -208,7 +209,7 @@ imports that are now unused; delete them too. Three steps, in this order:
    database drivers (`core/kdb/mysql` and `core/kdb/postgres`) in `cmd/api/main.go` and `cmd/svc/main.go`.
    Wire everything back per `docs/guides/assembly.md` when you add your first resource.
 
-3. **Delete the leftovers the compiler cannot see.** The chain of error code, sentinel error, translation function,
+3. **Delete the leftovers the compiler cannot see.** The chain of error code, sentinel error, its `OnMessage` mapping,
    i18n message and config field still references itself after the example is gone and compiles fine. Delete each
    place marked "Example: delete after forking", by the scope rules above:
 
@@ -218,7 +219,7 @@ imports that are now unused; delete them too. Three steps, in this order:
 
    Once there are no hits, run `gofmt -w internal cmd e2e` (the deletions leave blank lines and emptied parameter
    lists behind), then regenerate with `make proto && make config`. The i18n message files carry no markers (goi18n
-   rewrites files and drops comments); after deleting the translation function run
+   rewrites files and drops comments); after deleting the `OnMessage` mapping run
    `make i18n-extract && make i18n-merge`, and the example entries in each language's `active.*.toml` disappear with the
    code. An empty `custom:` in `configs/app.yaml` and an empty `message Custom` in `internal/conf/app.proto` are
    fine: they are where your first service config field goes. Run `go mod tidy` to drop the dependencies only the

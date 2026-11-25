@@ -12,3 +12,7 @@ text an end user reads.
   reader and leak how the service is built; developer detail goes to logs and comments.
 - **No first person, questions or colloquial verbs.** The text speaks for the service, in one register everywhere.
 - **Domain terms are used as they are**, the words users already see elsewhere in the product.
+- **Field-format checks are not user text.** A `VALIDATOR` error (the proto's `buf.validate` rules) carries the
+  validation library's English text for developers and is not translated: callers make sure parameters are valid
+  before sending them, so end users never see it. Text about the user's own input that only the service can judge
+  (a name already taken, a quota reached) is a domain error, written by these rules.

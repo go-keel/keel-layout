@@ -40,8 +40,8 @@ fallback   unmatched → context errors become 499/504; downstream Kratos errors
    domain noun + state or action: `ErrOrderNotFound`, `ErrInsufficientFunds`.
 3. Data returns it when it recognises the matching driver condition (`gorm.ErrRecordNotFound`, `gorm.ErrDuplicatedKey`,
    `redis.Nil`, ...); upper layers never branch on driver errors.
-4. Add the mapping to the sentinel group in `internal/service/errors.go`: `On` (no i18n) or `OnLocaled` (translated
-   text). **Every new domain error needs a mapping**, or it falls through to 500.
+4. Add the mapping to the sentinel group in `internal/service/errors.go`: `OnMessage` (translated text) or `On` (no
+   i18n, or a hand-written handler). **Every new domain error needs a mapping**, or it falls through to 500.
 5. For translated text, add the entries for every language under `internal/i18n/`. Whether to extract and merge with
    the tools or write them by hand, and the file names, follow the i18n targets in this repository's `Makefile`, if it
    has them, and the files already in `internal/i18n/`.
@@ -162,7 +162,7 @@ func (uc *WalletUseCase) Withdraw(ctx context.Context, userID uint64, amount dec
 	// The lock only stops concurrent submissions by one user: it is not renewed and another request takes it
 	// after 30 seconds. The balance cannot go negative because UpdateBalance does a conditional update in data
 	// (deduct only if enough), not because of the lock.
-	unlock, err := uc.locker.TryAcquireLock(ctx, fmt.Sprintf("wallet:withdraw:%d", userID), 30)
+	unlock, err := uc.locker.TryAcquireLock(ctx, fmt.Sprintf("wallet:withdraw:%d", userID), 30*time.Second)
 	if errors.Is(err, lock.ErrLockNotAcquired) {
 		return ErrDuplicateRequest // a normal state: this user's other submission holds the lock
 	}
@@ -217,36 +217,36 @@ an upstream template provides a base group, add this repository's mappings to it
 ```go
 func NewErrorSentinel() *sentinel.Group {
 	return sentinel.NewGroup().
-		// translated text: OnLocaled + the generated v1.ErrorXxx (carries reason and HTTP code)
-		OnLocaled(biz.ErrUserNotFound, translateUserNotFound).
-		OnLocaled(biz.ErrUnexpectedError, translateUnexpectedError).
+		// translated text: OnMessage + the English source + the generated v1.ErrorXxx (carries reason and HTTP code)
+		OnMessage(biz.ErrUserNotFound, &goi18n.Message{ID: "ErrUserNotFound", Other: "User not found."}, v1.ErrorUserNotFound).
 		// no translation: On + a helper (NotFound / Conflict / BadRequest / PreconditionFailed)
 		On(biz.ErrDuplicateRequest, sentinel.Conflict("DUPLICATE_REQUEST"))
 	// the fallback is sentinel.InternalWithLog; .Default(handler) replaces it
 }
-
-func translateUserNotFound(_ context.Context, localizer *goi18n.Localizer, _ error) error {
-	msg := i18n.MustLocalizeMessage(localizer, &goi18n.Message{
-		ID:    "ErrUserNotFound",
-		Other: "User not found.", // English fallback when no translation file matches
-	})
-	return v1.ErrorUserNotFound("%s", msg)
-}
 ```
 
 `v1.ErrorUserNotFound` is generated from `error_reason.proto` and returns a Kratos error with reason `USER_NOT_FOUND`
-and HTTP 404; a client checks it with `v1.IsUserNotFound(err)`.
+and HTTP 404; a client checks it with `v1.IsUserNotFound(err)`. The message goes out in the request's language; a
+language without the entry, or a chain without locale, gets the English `Other`. Write the message as a literal: the
+extract tool finds the English source there. Text translated outside the sentinel (a message built in a handler or a
+middleware) uses `locale.Localize(ctx, &goi18n.Message{...})`, which falls back the same way; text with template data
+or plural forms uses go-i18n's localizer from `locale.FromContext(ctx)`.
 
-### Enabling it in newApp (cmd/<app>/main.go)
+A `VALIDATOR` error (a request breaking the proto's `buf.validate` rules) is for developers, not end users: its message
+is the validation library's English text naming the field and the constraint, never translated and never given a
+message-file entry. Whoever calls the endpoint, a frontend or another service, makes sure the request is valid before
+sending it; a `VALIDATOR` error means that caller has a bug (`keel:docs/middleware.md#validate`).
+
+### Enabling it where the entry point builds its middleware chain
 
 ```go
-chain := mw.Default(c.Config)
-mw.WithLocale(chain, i18n.NewBundle()) // locale first, so OnLocaled has a localizer
+chain := mw.Default(config)
+mw.WithLocale(chain, i18n.NewBundle()) // Keel's bundle plus internal/i18n's message files
 mw.WithSentinel(chain, sg)
 ```
 
-`sg` (`*sentinel.Group`) is built in `di.go` with the function from `internal/service/errors.go` and passed to
-`newApp`.
+`sg` (`*sentinel.Group`) is built in `di.go` with the function from `internal/service/errors.go` and passed to where
+the chain is built.
 
 ## Which layer logs what
 

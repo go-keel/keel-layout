@@ -17,7 +17,7 @@ Logging rules and levels: [Logging](keel:docs/observability.md#logging).
    `ErrUnexpectedError`; upper layers pass it on without logging again (`docs/guides/errors.md`).
 2. **Pass `ctx` down, including into goroutines.** A goroutine started with `context.Background()` breaks the trace
    and is not cancelled with the request. Work that must finish after the request returns uses
-   `context.WithoutCancel(ctx)` (see `docs/practices/go.md`); a long-running loop uses the `worker.Server` ctx.
+   `context.WithoutCancel(ctx)` (see `docs/practices/go.md`); a long-running loop uses the ctx `worker.NewServer` passes it.
 3. **Request and response bodies are not logged by default** (personal data). To investigate, enable them where the
    chain is built and remove that again afterwards:
 
@@ -53,7 +53,8 @@ the metrics slot of `mw.Default`. For finer spans or business metrics, use the O
   `X-Forwarded-For` or `X-Real-IP` yourself. It is for logs and audit only; deployment is in
   `docs/guides/deploy-nginx.md`.
 - **Your own metadata:** headers with the `x-keel-` prefix are forwarded between services; read them in
-  `internal/service/` with `metadata.FromServerContext(ctx)`.
+  `internal/service/` with `metadata.Get(ctx, key)`; set one for the calls that follow with
+  `ctx, err := metadata.Set(ctx, key, value)`.
 - **Inbound `x-keel-*` values are the caller's claims, not facts.** A trusted value is written by the entry service
   after authentication, overwriting whatever came in. Trust model:
   [Metadata and the client IP](keel:docs/metadata.md).

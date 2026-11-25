@@ -33,10 +33,9 @@ Done when `make check test` passes.
 kconfig.NewConfig
   → kotel.Setup (process facility; its cleanup flushes)
   → keel.SetupLogger (no result; afterwards use package-level slog)
-  → keel.NewAppFactory
   → infrastructure as needed: kdb.NewDB / kredis.NewRedis / knats.NewClient / kasynq.NewTaskClient (needs redis)
   → data (repo implementations) → biz (use cases) → service → server register
-  → newApp(factory, ...) → factory.New(servers...)
+  → middleware chain and the servers that need it → keel.NewApp(config, servers...)
 ```
 
 No constructor takes an observability parameter; process facilities stay out of the graph
@@ -128,7 +127,6 @@ func wireApp(bootstrap *kconfig.Dynamic[conf.Bootstrap]) (*keel.App, func(), err
 	cleanups = append(cleanups, otelCleanup)
 
 	keel.SetupLogger(config)
-	appFactory := keel.NewAppFactory(keel.NewConfig(config))
 
 	db, dbCleanup, err := kdb.NewDB(config)
 	if err != nil {
@@ -155,7 +153,7 @@ func wireApp(bootstrap *kconfig.Dynamic[conf.Bootstrap]) (*keel.App, func(), err
 	httpServerRegister := server.NewHTTPServerRegister(articleService)
 	sentinelGroup := service.NewErrorSentinel()
 
-	app, err := newApp(appFactory, httpServerRegister, sentinelGroup)
+	app, err := newApp(config, httpServerRegister, sentinelGroup)
 	if err != nil {
 		return nil, cleanup, err
 	}
@@ -208,35 +206,34 @@ comes first and those resources are never released; the costliest loss is the un
 are exactly the data that explains why startup failed. `panic` runs deferred calls already registered, so registering
 first saves them. The nil check covers failures so early that no cleanup exists yet.
 
-`newApp` also lives in `main.go`: it takes `factory.Config()`, builds the chain from `mw.Default(c.Config)` and the
-`mw.With*` presets (authentication is not mounted: the server builds it from its own config, see
-`docs/guides/auth.md`), constructs the servers that need the chain, and ends with `factory.New(servers...)`:
+Each entry point builds its middleware chain in one place: from `mw.Default(config)` and the `mw.With*` presets
+(authentication is not mounted: the server builds it from its own config, see `docs/guides/auth.md`), then constructs
+the servers that need the chain and ends with `keel.NewApp(config, servers...)`. Below, that place is a `newApp`
+function next to `main`:
 
 ```go
-// cmd/<app>/main.go: an entry point with an HTTP server
+// an entry point with an HTTP server
 func newApp(
-	factory *keel.AppFactory,
+	cfg *kconfig.Config,
 	apiRegister api.HTTPServerRegister,
 	streamRegister api.StreamRegister, // only when there are raw routes; see the raw-http guide
 	sg *sentinel.Group,
 ) (*keel.App, error) {
-	c := factory.Config()
-
-	chain := mw.Default(c.Config)
+	chain := mw.Default(cfg)
 	mw.WithLocale(chain, i18n.NewBundle())
 	mw.WithSentinel(chain, sg)
 
-	apiServer, err := api.NewHTTPServer(c.Server.Http["default"], apiRegister, chain, streamRegister)
+	apiServer, err := api.NewHTTPServer(cfg.Server.Http["default"], apiRegister, chain, streamRegister)
 	if err != nil {
 		return nil, err
 	}
-	return factory.New(apiServer)
+	return keel.NewApp(cfg, apiServer)
 }
 ```
 
-A gRPC server has the same shape (`api.NewGRPCServer(c.Server.Grpc["default"], register, chain)`). Servers that need
-no chain (consumer, worker, scheduler) are built in `wireApp`; `newApp` takes them as ready `keel.Server` values and
-calls `factory.New(consumerServer, workerServer, schedulerServer)`. Chain presets and inserting your own middleware:
+A gRPC server has the same shape (`api.NewGRPCServer(cfg.Server.Grpc["default"], register, chain)`). Servers that
+need no chain (consumer, worker, scheduler) are built in `wireApp` and passed to the same `keel.NewApp` call as ready
+`keel.Server` values: `keel.NewApp(cfg, consumerServer, workerServer, schedulerServer)`. Chain presets and inserting your own middleware:
 `keel:docs/middleware.md#building-a-chain`.
 
 ### Named instances
@@ -320,6 +317,6 @@ articleUseCase := biz.NewArticleUseCase(articleRepo, ids, locker)
 ## Related
 
 - Config structure and Bootstrap reload: `docs/guides/config.md`
-- Domain errors and sentinel (enabled in `newApp`): `docs/guides/errors.md`
+- Domain errors and sentinel (enabled where the entry point builds its middleware chain): `docs/guides/errors.md`
 - `keel:docs/assembly.md`: the five rules and their reasons
 - `keel:docs/architecture.md`: the layers these constructors belong to

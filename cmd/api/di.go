@@ -34,8 +34,6 @@ func wireApp(bootstrap *kconfig.Dynamic[conf.Bootstrap]) (*keel.App, func(), err
 	cleanups = append(cleanups, otelCleanup)
 
 	keel.SetupLogger(config)
-	appFactory := keel.NewAppFactory(keel.NewConfig(config))
-
 	db, dbCleanup, err := kdb.NewDB(config)
 	if err != nil {
 		return nil, cleanup, err
@@ -63,7 +61,7 @@ func wireApp(bootstrap *kconfig.Dynamic[conf.Bootstrap]) (*keel.App, func(), err
 	streamRegister := server.NewStreamRegister(streamService, webhookHandler)
 	sentinelGroup := service.NewErrorSentinel()
 
-	app, err := newApp(appFactory, httpServerRegister, streamRegister, sentinelGroup)
+	app, err := newApp(config, httpServerRegister, streamRegister, sentinelGroup)
 	if err != nil {
 		return nil, cleanup, err
 	}

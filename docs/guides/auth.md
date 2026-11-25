@@ -14,8 +14,8 @@ what fails startup are in `keel:docs/auth.md`. This guide covers where things go
 1. Turn on `auth` for the server in `configs/config.yaml` (each HTTP and gRPC server has its own block). Secrets never
    go into the repository: locally they go in `configs/config.dev.yaml`, in production the deployment supplies them
    (`docs/guides/config.md`).
-2. Mount nothing: pass the chain from `mw.Default(c.Config)` to the server constructor unchanged in `newApp`; the
-   server fills the auth slot itself.
+2. Mount nothing: pass the chain from `mw.Default(config)` to the server constructor unchanged; the server fills the
+   auth slot itself.
 3. Mark sign-in-free endpoints in the `.proto` with `option (keel.v1.auth) = {allow_anonymous: true};`, then
    `make proto`. No code registers them.
 4. Read the current user in `internal/service/` with `auth.FromContext(ctx)` and pass the user ID to biz as a plain
@@ -124,8 +124,8 @@ func principalCheck() mw.Middleware {
     }
 }
 
-// cmd/<app>/main.go, where newApp builds the chain
-chain := mw.Default(c.Config)
+// where the entry point builds its middleware chain
+chain := mw.Default(config)
 chain.InsertAfter(mw.SlotAuth, principalCheck(), "principal")
 ```
 
@@ -136,7 +136,7 @@ verification details, and this check must not either.
 ### Calling another service (gRPC client)
 
 ```go
-chain := mw.ClientDefault(c.Config)
+chain := mw.ClientDefault(config)
 mw.WithClientAuth(chain, func() string {
     return internalToken() // a valid JWT; sent as Authorization: Bearer
 })

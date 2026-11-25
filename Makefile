@@ -228,7 +228,7 @@ all: proto config generate
 
 # goi18n, like the buf plugins, is pinned as go run ...@version: nothing to install, no drift; its version follows
 # go-i18n in go.mod.
-GOI18N := go run github.com/nicksnyder/go-i18n/v2/goi18n@v2.6.1
+GOI18N := go run github.com/nicksnyder/go-i18n/v2/goi18n@v2.7.0
 
 .PHONY: i18n-extract
 i18n-extract:

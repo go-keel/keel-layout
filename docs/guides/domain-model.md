@@ -370,12 +370,12 @@ import "github.com/go-keel/keel/core/kredis/lock"
 
 type ArchiveUseCase struct {
     repo   ArticleRepo
-    locker lock.Locker
+    locker *lock.Locker
 }
 
 func (uc *ArchiveUseCase) ArchiveExpired(ctx context.Context) error {
     // Size the TTL for the worst case, generously: the lock is not renewed and another instance takes it at expiry.
-    release, err := uc.locker.TryAcquireLock(ctx, "archive:article", 60)
+    release, err := uc.locker.TryAcquireLock(ctx, "archive:article", time.Minute)
     if errors.Is(err, lock.ErrLockNotAcquired) {
         slog.InfoContext(ctx, "archive already running elsewhere, skip")
         return nil // not an error: skip this run and wait for the next schedule

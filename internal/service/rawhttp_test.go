@@ -18,7 +18,6 @@ import (
 	"github.com/go-keel/keel-layout/internal/conf"
 	"github.com/go-keel/keel/core/kconfig"
 	"github.com/go-keel/keel/middleware/metadata"
-	kmd "github.com/go-kratos/kratos/v3/metadata"
 )
 
 // Raw routes bypass the middleware chain, so method restrictions are hand-written. Each of the three example
@@ -134,7 +133,10 @@ func TestSignatureFilter(t *testing.T) {
 func TestSignedEchoHandler(t *testing.T) {
 	// In production api.NewHTTPServer puts the value into the context outside the chain, which a test cannot
 	// reproduce; here we fill GetRemoteIP's other source and check only that the handler writes it back.
-	ctx := kmd.NewServerContext(t.Context(), kmd.New(map[string][]string{metadata.KeyRemoteAddress: {"203.0.113.7"}}))
+	ctx, err := metadata.Set(t.Context(), metadata.KeyRemoteAddress, "203.0.113.7")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	rec := httptest.NewRecorder()
 	SignedEchoHandler()(rec, httptest.NewRequest(http.MethodPost, "/examples/signed/echo", nil).WithContext(ctx))

@@ -13,7 +13,6 @@ import (
 	"strings"
 	"testing"
 
-	kmd "github.com/go-kratos/kratos/v3/metadata"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -25,6 +24,7 @@ import (
 	v1 "github.com/go-keel/keel-layout/api/keel_layout/v1"
 	"github.com/go-keel/keel/conf"
 	"github.com/go-keel/keel/core/kconfig"
+	kmetadata "github.com/go-keel/keel/middleware/metadata"
 )
 
 // Basis: keel:docs/grpc.md, "Errors and tracing"; api/keel_layout/v1/todo.proto, the unary RPCs.
@@ -75,16 +75,18 @@ func testGRPCErrorsAndLocale(t *testing.T, e *env) {
 // Basis: keel:docs/client.md, "Creating a client"; keel:docs/metadata.md (x-keel-accept-language travels down).
 func testGRPCKeelClient(t *testing.T, e *env) {
 	cfg := &kconfig.Config{Config: &conf.Config{Client: map[string]*conf.Client{"todo-svc": {Endpoint: e.grpcAddr}}}}
-	factory := keel.NewServiceClientFactory(keel.NewConfig(cfg))
-	if _, _, err := keel.NewServiceClient(factory, "no-such-svc", v1.NewTodoServiceClient, nil); err == nil || !strings.Contains(err.Error(), "client.config-missing") {
+	if _, _, err := keel.NewServiceClient(cfg, "no-such-svc", v1.NewTodoServiceClient, nil); err == nil || !strings.Contains(err.Error(), "client.config-missing") {
 		t.Fatalf("unknown client name: %v, want keel/client.config-missing", err)
 	}
-	c, cleanup, err := keel.NewServiceClient(factory, "todo-svc", v1.NewTodoServiceClient, nil)
+	c, cleanup, err := keel.NewServiceClient(cfg, "todo-svc", v1.NewTodoServiceClient, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer cleanup()
-	ctx := kmd.AppendToClientContext(context.Background(), "x-keel-accept-language", "zh-CN")
+	ctx, err := kmetadata.Set(context.Background(), kmetadata.KeyAcceptLanguage, "zh-CN")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	created, err := c.CreateTodo(ctx, &v1.CreateTodoRequest{Title: uniq("keel client")})
 	if err != nil {
@@ -133,13 +135,9 @@ func testGRPCKeelClient(t *testing.T, e *env) {
 		t.Fatalf("message %q, want the zh-CN translation", msg)
 	}
 	_, err = c.CreateTodo(ctx, &v1.CreateTodoRequest{})
-	if msg := wantGRPCError(t, err, 400, "VALIDATOR"); !containsHan(msg) {
-		t.Fatalf("message %q, want Chinese", msg)
+	if msg := wantGRPCError(t, err, 400, "VALIDATOR"); !strings.Contains(msg, "title") {
+		t.Fatalf("message %q, want the validation library's text naming the field", msg)
 	}
-}
-
-func containsHan(s string) bool {
-	return strings.ContainsFunc(s, func(r rune) bool { return r >= 0x4e00 && r <= 0x9fff })
 }
 
 // recvAll reads a stream to its end and returns the number of messages.

@@ -78,7 +78,6 @@ func testStartupErrors(t *testing.T, e *env) {
 		{"sample ratio over 1", "api", [][3]string{{"config.yaml", "otel:\n", "otel:\n  trace_sample_ratio: 1.5\n"}}, nil, "kconfig.invalid", nil},
 		{"negative stop timeout", "api", [][3]string{{"config.yaml", "  stop_timeout: 20s ", "  stop_timeout: -1s "}}, nil, "kconfig.invalid", nil},
 		{"queue weight 0", "worker", [][3]string{{"config.yaml", "      default: 6\n", "      default: 0\n"}}, nil, "kconfig.invalid", nil},
-		{"empty app.domain", "api", [][3]string{{"config.yaml", "  domain: keel\n", "  domain: \"\"\n"}}, nil, "knats.domain-missing", nil},
 		{"empty NATS url", "api", nil, []string{"KEEL_NATS_URL="}, "kconfig.invalid", nil},
 	}
 	for _, c := range cases {

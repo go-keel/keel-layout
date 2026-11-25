@@ -37,8 +37,6 @@ func wireApp(_ *kconfig.Dynamic[conf.Bootstrap]) (*keel.App, func(), error) {
 	cleanups = append(cleanups, otelCleanup)
 
 	keel.SetupLogger(config)
-	appFactory := keel.NewAppFactory(keel.NewConfig(config))
-
 	natsClient, natsCleanup, err := knats.NewClient(config)
 	if err != nil {
 		return nil, cleanup, err
@@ -76,7 +74,7 @@ func wireApp(_ *kconfig.Dynamic[conf.Bootstrap]) (*keel.App, func(), error) {
 		return nil, cleanup, err
 	}
 
-	app, err := newApp(appFactory, consumerServer, workerServer, schedulerServer)
+	app, err := newApp(config, consumerServer, workerServer, schedulerServer)
 	if err != nil {
 		return nil, cleanup, err
 	}

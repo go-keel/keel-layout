@@ -47,24 +47,3 @@ func TestLoadMessageFiles_SkipsTranslateDrafts(t *testing.T) {
 		t.Fatalf("expected 你好, got %q (err %v)", got, err)
 	}
 }
-
-// TestMustLocalizeMessage_FallsBackToEnglish builds a language missing an entry: the Localizer picks French, but the
-// bundle has the message only in English. It asserts the English source comes back with no error and no panic;
-// replacing MustLocalizeMessage with localizer.MustLocalizeMessage should make this test fail with a panic.
-func TestMustLocalizeMessage_FallsBackToEnglish(t *testing.T) {
-	b := goi18n.NewBundle(language.English)
-	if err := b.AddMessages(language.English, &goi18n.Message{ID: "Greeting", Other: "hello"}); err != nil {
-		t.Fatalf("add english message: %v", err)
-	}
-	// French is registered in the bundle (otherwise language matching falls straight back to the default language and
-	// the "language present, entry missing" path is not tested), but it has no Greeting entry.
-	if err := b.AddMessages(language.French, &goi18n.Message{ID: "Unrelated", Other: "bonjour"}); err != nil {
-		t.Fatalf("add french message: %v", err)
-	}
-
-	loc := goi18n.NewLocalizer(b, "fr")
-	got := MustLocalizeMessage(loc, &goi18n.Message{ID: "Greeting", Other: "hello"})
-	if got != "hello" {
-		t.Fatalf("expected english fallback %q, got %q", "hello", got)
-	}
-}

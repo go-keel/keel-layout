@@ -37,8 +37,6 @@ func wireApp(_ *kconfig.Dynamic[conf.Bootstrap]) (*keel.App, func(), error) {
 	cleanups = append(cleanups, otelCleanup)
 
 	keel.SetupLogger(config)
-	appFactory := keel.NewAppFactory(keel.NewConfig(config))
-
 	db, dbCleanup, err := kdb.NewDB(config)
 	if err != nil {
 		return nil, cleanup, err
@@ -63,7 +61,7 @@ func wireApp(_ *kconfig.Dynamic[conf.Bootstrap]) (*keel.App, func(), error) {
 	grpcServerRegister := server.NewGRPCServerRegister(todoService)
 	sentinelGroup := service.NewErrorSentinel()
 
-	app, err := newApp(appFactory, grpcServerRegister, sentinelGroup)
+	app, err := newApp(config, grpcServerRegister, sentinelGroup)
 	if err != nil {
 		return nil, cleanup, err
 	}

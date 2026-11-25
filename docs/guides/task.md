@@ -162,8 +162,8 @@ if err != nil {
 }
 ```
 
-Both are `keel.Server`s and go to `factory.New` in that entry point's `newApp`, with the consumer server of the same
-entry point: `factory.New(consumerServer, workerServer, schedulerServer)`.
+Both are `keel.Server`s and go to that entry point's `keel.NewApp`, with the consumer server of the same entry point:
+`keel.NewApp(config, consumerServer, workerServer, schedulerServer)`.
 
 ## Configuration
 
@@ -174,7 +174,7 @@ budget either gets a larger `app.stop_timeout` or is safe to run again.
 
 ## Long-running loops
 
-A loop that is neither message- nor schedule-driven (a poller, a bot) runs as `worker.Server(runner)`, whose runner
+A loop that is neither message- nor schedule-driven (a poller, a bot) runs as `worker.NewServer(runner)`, whose runner
 returns on `ctx.Done()` ([Background workers](keel:docs/worker.md)). Never start it as a bare goroutine with
 `context.Background()`: the process cannot stop it gracefully.
 
