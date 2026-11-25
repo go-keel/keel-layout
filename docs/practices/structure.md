@@ -17,7 +17,8 @@ internal/service/         transport adapters, one file per resource
 internal/biz/             domain models, use cases, repo interfaces, errors
 internal/data/            repo implementations, storage clients, gRPC clients
 internal/i18n/            language bundles and translations
-migrations/<database>/    SQL scripts applied by hand: 0_schema.sql, 1_baseline.sql, incremental scripts
+migrations/<database>/    one directory per dialect (mysql/, postgres/) of SQL scripts applied by hand: 0_schema.sql,
+                          1_baseline.sql, incremental scripts
 third_party/              imported .proto: keel, protovalidate, googleapis, kratos copied by make proto from go.mod;
                           any other directory is this repository's own vendored .proto (a module in buf.yaml)
 deploy/nginx/             nginx config in front of the service; subdirectories mirror /etc/nginx/

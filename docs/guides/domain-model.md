@@ -18,8 +18,9 @@ The code below uses a fictional `Article` domain that this repository may not ha
    (up to 5 models in that file; beyond that split per domain into `internal/data/{domain}_model.go`).
 4. Implement the repo in `internal/data/{domain}.go`: a compile-time assertion, and a constructor returning the
    interface type.
-5. Write the schema change into `migrations/<database>/0_schema.sql`, plus an incremental script once the database is
-   in production (**no AutoMigrate**; in the same commit as the model change; see "Schema" below).
+5. Write the schema change into `migrations/<database>/<dialect>/0_schema.sql` of every dialect kept, plus an
+   incremental script once the database is in production (**no AutoMigrate**; in the same commit as the model
+   change; see "Schema" below).
 6. Wire the new constructors in every `cmd/<app>/di.go` that uses them, in the order data → biz → service.
 7. Done when `make check` passes (the `var _` assertion catches an interface mismatch here).
 
@@ -229,14 +230,18 @@ Before a repo method opens a transaction, takes a lock or does a conditional upd
 partition maintenance: for a table the creation script made partitioned, code may create new partitions and drop
 expired ones on a schedule, without touching columns, indexes, the partitioning scheme or other tables (see
 `docs/practices/database.md`). The schema is managed only by `.sql` scripts under `migrations/`, **one directory per
-database**: `migrations/business/` by default; a repository with more databases adds `migrations/<database>/` for each,
-named as it likes. A directory owned by an upstream template (listed outside the segments) is overwritten whole when
+database, and in it one directory per dialect**: `migrations/business/mysql/` and `migrations/business/postgres/` by
+default; a repository with more databases adds `migrations/<database>/` for each, named as it likes. A dialect
+directory is named after the `database.<name>.driver` value (`mysql`, `postgres`). The templates keep both dialects
+and every change goes into both; a repository that runs on one database only deletes the other dialect's directories
+from the databases it owns. The dialects a repository runs on are those every database directory has: data tests run
+on exactly those, and a directory owned by an upstream template, which keeps both, does not widen the set. A directory owned by an upstream template (listed outside the segments) is overwritten whole when
 following upstream and never edited here.
 
-Each directory holds three kinds of files, listed in this order:
+Each dialect directory holds three kinds of files, listed in this order:
 
 ```
-migrations/business/
+migrations/business/mysql/
 ├── 0_schema.sql                          complete schema at its latest shape; a new database runs only this
 ├── 1_baseline.sql                        0_schema.sql as it was at the baseline
 └── 20261103142000_add_article_tag.sql    one change on top of the baseline (YYYYMMDDHHMMSS_description.sql)
@@ -252,7 +257,8 @@ migrations/business/
 - **The baseline may move forward**: replace `1_baseline.sql` with the current `0_schema.sql` and delete the
   incremental scripts it now contains. **Before doing it, ask the user to confirm that every environment has run
   those scripts**: an environment that has not can no longer catch up from the files.
-- Every environment, local included, runs scripts by hand: `mysql ... < migrations/business/0_schema.sql`.
+- Every environment, local included, runs scripts by hand: `mysql ... < migrations/business/mysql/0_schema.sql`, or
+  `psql ... -v ON_ERROR_STOP=1 -f migrations/business/postgres/0_schema.sql`.
 - **A template ships only `0_schema.sql`.** Following upstream overwrites the complete schema of a directory the
   template owns; the `ALTER` an existing database needs is in the matching ledger entry in `UPGRADING.md`.
 

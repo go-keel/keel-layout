@@ -1,4 +1,5 @@
 # Copy both time-zone parameters (loc, time_zone) as they are; both are required, see the database section of config.yaml.
+# For PostgreSQL see the same section.
 database:
   default:
     driver: mysql

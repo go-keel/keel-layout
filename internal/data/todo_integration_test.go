@@ -10,13 +10,18 @@ import (
 	"testing"
 
 	"github.com/go-keel/keel-layout/internal/biz"
+	"github.com/go-keel/keel/core/kdb"
 )
 
-// Runs under make integration on a fresh MySQL database built from migrations/*/0_schema.sql
+// Runs under make integration once per dialect, each on a fresh database built from migrations/*/<dialect>/0_schema.sql
 // (testdb_integration_test.go). A data-layer test for a new resource follows this shape.
 func TestTodoRepo(t *testing.T) {
+	forEachDB(t, testTodoRepo)
+}
+
+func testTodoRepo(t *testing.T, db *kdb.DB) {
 	ctx := context.Background()
-	repo := NewTodoRepo(openTestDB(t))
+	repo := NewTodoRepo(db)
 
 	a, err := repo.Create(ctx, &biz.Todo{Title: "a", Content: "x"})
 	if err != nil {
@@ -45,6 +50,10 @@ func TestTodoRepo(t *testing.T) {
 	up, err := repo.Update(ctx, &biz.Todo{ID: a.ID, Title: "a2", Content: "ignored"}, []string{"title"})
 	if err != nil || up.Title != "a2" || up.Content != "x" {
 		t.Fatalf("Update = %+v, %v; want title a2 and content unchanged", up, err)
+	}
+	// Writing the value a row already has is still an update of an existing row, on every dialect.
+	if _, err := repo.Update(ctx, &biz.Todo{ID: a.ID, Title: "a2"}, []string{"title"}); err != nil {
+		t.Fatalf("Update to the same value: %v; want success", err)
 	}
 
 	if err := repo.Delete(ctx, a.ID); err != nil {

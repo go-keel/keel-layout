@@ -38,7 +38,7 @@ go test ./...
 
 **To actually start a process, first check what it needs**; the three cmds do not depend on the same set:
 
-| Process | MySQL | NATS | Redis |
+| Process | Database | NATS | Redis |
 |---|:---:|:---:|:---:|
 | `bin/api` (HTTP `:8080`) | ✓ | ✓ | |
 | `bin/svc` (gRPC `:9000`) | ✓ | ✓ | |
@@ -51,7 +51,9 @@ cp configs/config.dev.example.yaml configs/config.dev.yaml
 #    Without a running OTEL collector, also add `otel: {enabled: false}` to it
 
 # 2. Create tables: no AutoMigrate; a new database runs the complete schema by hand
-mysql -uroot -p123456 keel < migrations/business/0_schema.sql
+mysql -uroot -p123456 keel < migrations/business/mysql/0_schema.sql
+#    On PostgreSQL: switch driver, source and the driver import as the database section of configs/config.yaml says, then
+#    psql -U postgres -d keel -v ON_ERROR_STOP=1 -f migrations/business/postgres/0_schema.sql
 
 # 3. Start a process
 ./bin/api
@@ -162,10 +164,11 @@ order:
    make proto
    ```
 
-   `internal/data/testdb_integration_test.go` stays: it builds the test database from `migrations/*/0_schema.sql`
-   for your own data-layer tests. `internal/data/model.go` stays as the home of your GORM models; delete its marked
-   block now, because it refers to the deleted `biz.Todo`. `migrations/business/0_schema.sql` stays too: step 3
-   deletes the example table from it. With the example's data-layer tests gone, `make integration` runs no test until
+   `internal/data/testdb_integration_test.go` stays: it builds the test databases from
+   `migrations/*/<dialect>/0_schema.sql` for your own data-layer tests. `internal/data/model.go` stays as the home of
+   your GORM models; delete its marked block now, because it refers to the deleted `biz.Todo`. Both
+   `migrations/business/<dialect>/0_schema.sql` stay too: step 3 deletes the example table from them. If the service
+   runs on one database only, delete the other dialect's directory now (`docs/guides/domain-model.md`, "Schema"). With the example's data-layer tests gone, `make integration` runs no test until
    you add your own.
 
 2. **Fix the interwoven places by compile errors.** `go build ./...` points at the broken references in
@@ -193,7 +196,7 @@ order:
    `scheduler.go`) and `service.TaskHandler`, now empty, as the places for your first endpoints, consumer, task and
    cron job. With the webhook gone, `cmd/api` reads no field of `app.yaml`: rename its `wireApp` parameter to `_` and
    copy the comment above `wireApp` in `cmd/svc/di.go`. With no database left, also delete the blank import of the
-   database driver (`core/kdb/mysql`) in `cmd/api/main.go` and `cmd/svc/main.go`.
+   database driver (`core/kdb/mysql` or `core/kdb/postgres`) in `cmd/api/main.go` and `cmd/svc/main.go`.
    Wire everything back per `docs/guides/assembly.md` when you add your first resource.
 
 3. **Delete the leftovers the compiler cannot see.** The chain of error code, sentinel error, translation function,

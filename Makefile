@@ -162,8 +162,10 @@ init-hooks:
 check-mod:
 	GOWORK=off go build ./...
 
-# Real-database tests (build tag integration): the same data-layer cases as make check, on a fresh MySQL database
-# built from migrations/*/0_schema.sql. Needs TEST_MYSQL_DSN, e.g. 'root:keel@tcp(127.0.0.1:53306)/?parseTime=true'; a missing
+# Real-database tests (build tag integration): the data-layer cases, once per dialect kept under migrations/, each on a
+# fresh database built from migrations/*/<dialect>/0_schema.sql. Needs TEST_MYSQL_DSN, e.g.
+# 'root:pass@tcp(127.0.0.1:3306)/?parseTime=true', and TEST_POSTGRES_DSN, e.g.
+# 'postgres://postgres:pass@127.0.0.1:5432/postgres?sslmode=disable' (docs/guides/testing.md); a missing
 # variable fails. Not part of make check.
 .PHONY: integration
 integration:

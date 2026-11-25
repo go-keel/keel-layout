@@ -16,14 +16,14 @@ and `docs/guides/task.md`). The repository need not contain it; replace it with 
 |---|---|---|
 | biz | hand-written fakes of biz interfaces (repo, port, `knats.Publisher`, `kasynq.Enqueuer`) | none |
 | service | real UseCase on a fake repo (service and biz tested together) | none |
-| data | the storage boundary: a fresh MySQL database built from `migrations/*/0_schema.sql` | MySQL, `make integration` only |
+| data | the storage boundary: a fresh database per dialect, built from `migrations/*/<dialect>/0_schema.sql` | MySQL and PostgreSQL, `make integration` only |
 | server / `di.go` | no unit tests; `make build` compiles them | none |
 
 2. Write the fake in the `_test.go` file of the layer under test: a small struct implementing the biz interface, with
    the compile-time assertion `var _ biz.XxxRepo = (*fakeXxxRepo)(nil)`, so an interface change fails the test build
    first.
 3. Table-driven cases: `cases := []struct{ name string; ... }` with `t.Run`.
-4. **`make check` passes with no database, Redis, NATS or Docker.** Tests that need real storage are behind the build
+4. **`make check` passes with no database, Redis or NATS server.** Tests that need real storage are behind the build
    tag `integration` (see "data tests").
 5. Assert behaviour the business can see (return values, domain errors, calls the fake recorded), never log output or
    counts of internal calls. Done when `make check` passes.
@@ -266,20 +266,30 @@ are `*_integration_test.go` files with `//go:build integration`; `make check` ru
 
 // internal/data/<resource>_integration_test.go
 func TestArticleRepo(t *testing.T) {
-    repo := NewArticleRepo(openTestDB(t))
+    forEachDB(t, testArticleRepo)
+}
+
+func testArticleRepo(t *testing.T, db *kdb.DB) {
+    repo := NewArticleRepo(db)
     // Create, read back, list with filters, partial update, delete, then assert the domain errors.
 }
 ```
 
-- `openTestDB` is in `internal/data/testdb_integration_test.go`: it creates a fresh database on the MySQL server in
-  `TEST_MYSQL_DSN`, applies the complete schema of every database (`migrations/*/0_schema.sql`) and drops the database
-  afterwards. The schema under test is therefore the one a new database gets; there is no separate test DDL.
-  Incremental scripts are not run by tests: run one by hand on a database built from `1_baseline.sql` and the scripts
-  before it, and check the result matches `0_schema.sql`.
-- A missing `TEST_MYSQL_DSN` **fails** the test, because a skipped test reports a pass that tested nothing.
+- `forEachDB` is in `internal/data/testdb_integration_test.go`. It runs the test once per dialect the repository
+  runs on (the `<dialect>` directories every `migrations/<database>/` has), as a subtest named after the dialect.
+  Each run creates a fresh database on that dialect's server, applies the complete schema of every database
+  (`migrations/*/<dialect>/0_schema.sql`) and drops the database afterwards. The schema under test is therefore the
+  one a new database gets; there is no separate test DDL. Incremental scripts are not run by tests: run one by hand
+  on a database built from `1_baseline.sql` and the scripts before it, and check the result matches `0_schema.sql`.
+- The servers come from `TEST_MYSQL_DSN` (`root:pass@tcp(127.0.0.1:3306)/?parseTime=true`) and `TEST_POSTGRES_DSN`
+  (a URL, `postgres://postgres:pass@127.0.0.1:5432/postgres?sslmode=disable`); the account must be allowed to create
+  databases. A missing variable for a dialect the repository runs on **fails** the test, because a skipped test reports a pass that
+  tested nothing.
+- Code that behaves differently per dialect (locking, case sensitivity, error details) gets a case that asserts the
+  behaviour on both: that difference is what the second dialect is there to catch.
 - Run `make integration` after changing data-layer code or a migration.
 
-`make check` never needs a database or Docker; `make integration` always does.
+`make check` never needs a database or another server; `make integration` always needs real ones.
 
 ## Anti-patterns
 

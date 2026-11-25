@@ -1,8 +1,9 @@
--- Complete schema of the business database: running it on an empty database creates every table at its latest shape.
+-- Complete schema of the business database on MySQL: running it on an empty database creates every table at its
+-- latest shape. The PostgreSQL version is ../postgres/0_schema.sql; a change goes into both.
 -- Rules (directories, 0_schema.sql / 1_baseline.sql / incremental scripts): docs/guides/domain-model.md, "Schema".
 -- Table design rules (naming, primary keys, character set, time, indexes): docs/practices/database.md.
 -- Every environment (local included) runs it by hand, for example:
---   mysql -h127.0.0.1 -uroot -p <database> < migrations/business/0_schema.sql
+--   mysql -h127.0.0.1 -uroot -p <database> < migrations/business/mysql/0_schema.sql
 
 -- The mysql client's default character set is not always utf8mb4 (often latin1); without this, non-ASCII text in
 -- the script is stored garbled.

@@ -108,8 +108,8 @@ A Todo resource runs through every entry as a living example of the shared rules
 derived repository usually deletes it (`README.md`, "Delete the examples"). Where to look:
 
 - Full resource: `api/keel_layout/v1/todo.proto` → `internal/service/todo.go` → `internal/biz/todo.go` →
-  `internal/data/todo.go`, table in `migrations/business/0_schema.sql`, data-layer tests on MySQL
-  (under `make integration`) in `internal/data/todo_integration_test.go`.
+  `internal/data/todo.go`, table in `migrations/business/{mysql,postgres}/0_schema.sql`, data-layer tests on MySQL
+  and PostgreSQL (under `make integration`) in `internal/data/todo_integration_test.go`.
 - List endpoint: `ListTodo` (tri-state filter `completed`, sort enum `sort`, list row `TodoListItem`, default page size in
   biz).
 - Streaming RPCs: `WatchTodo` (server stream → SSE), `StreamTodoLookup` (bidirectional → WebSocket); binary response:
